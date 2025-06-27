@@ -29,6 +29,7 @@ class Element:
         if isinstance(child, Element):
             child.parent = self
         self.children.append(child)
+        return child
 
     def add_event_listener(self, type_, handler, phase="bubble"):
         key = (type_, phase)
