@@ -15,9 +15,9 @@ class Event:
 class Element:
     def __init__(self,
                  tag: str,
-                 _id: str | None = None,
                  attrs: Optional[Dict[str, str]] = None,
-                 parent=None):
+                 parent=None,
+                 _id: str | None = None):
         self.tag = tag
         self.id = _id
         self.attrs = attrs or {}
