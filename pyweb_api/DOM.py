@@ -65,6 +65,11 @@ class Element:
                 if event._stopped:
                     return
 
+    def set_text(self, new_text: str):
+        self.children = [new_text]
+        if hasattr(self, "_tk_widget") and self._tk_widget:
+            self._tk_widget.config(text=new_text)
+
     def _get_style_dict(self) -> Dict[str, str]:
         styles = {}
 

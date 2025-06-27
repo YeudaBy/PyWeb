@@ -195,6 +195,7 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClie
         widget = tk.Frame(parent_tk_widget, **widget_opts)
 
     if widget:
+        element._tk_widget = widget
         widget.pack(fill="x", **tk_style["pack"])
         for child in element.children:
             if isinstance(child, Element):
