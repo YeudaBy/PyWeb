@@ -2,10 +2,13 @@ import io
 import tkinter as tk
 from PIL import Image, ImageTk
 from urllib import request
-from logging import Logger
 from typing import Dict
 
 from pyweb_api.DOM import Element, Event
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pyweb_client.main import PyWebClient
 
 
 def parse_style_to_tk(style: Dict[str, str]) -> Dict[str, Dict[str, any]]:
@@ -117,13 +120,13 @@ def filter_widget_options(tag: str, options: Dict[str, any]) -> Dict[str, any]:
     return {k: v for k, v in options.items() if k in allowed_keys}
 
 
-def render_element(parent_tk_widget: tk.Widget, element: Element, client_instance):
+def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClient'):
     if isinstance(element, str):
         lbl = tk.Label(parent_tk_widget, text=element, wraplength=500)
         lbl.pack(anchor="w", padx=5, pady=2)
         return
 
-    style = element.get_style_dict()
+    style = element._get_style_dict()
     tk_style = parse_style_to_tk(style)
     widget_opts = filter_widget_options(element.tag, tk_style["widget"])
     tag = element.tag
@@ -147,7 +150,7 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, client_instanc
         widget_opts["font"] = ("Arial", 12, "underline")
         link_url = element.attrs.get('href', '#')
         widget = tk.Label(parent_tk_widget, text=text, **widget_opts, cursor="hand2")
-        widget.bind("<Button-1>", lambda e: client_instance.navigate_to(link_url))
+        widget.bind("<Button-1>", lambda e: cl.location.navigate(link_url))
     elif tag == "button":
         widget = tk.Button(parent_tk_widget,
                            command= lambda : element.dispatch_event(Event("click", element)),
@@ -188,11 +191,11 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, client_instanc
         except Exception:
             widget = tk.Label(parent_tk_widget, text="[Image Load Error]")
     else:
-        client_instance.console_log(f"UNKNOWN EL TAG: {element.tag}")
+        cl.console.log(f"UNKNOWN EL TAG: {element.tag}")
         widget = tk.Frame(parent_tk_widget, **widget_opts)
 
     if widget:
         widget.pack(fill="x", **tk_style["pack"])
         for child in element.children:
             if isinstance(child, Element):
-                render_element(widget, child, client_instance)
+                render_element(widget, child, cl)
