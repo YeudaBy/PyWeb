@@ -1,12 +1,13 @@
 import io
 import tkinter as tk
-from PIL import Image, ImageTk
-from urllib import request
 from typing import Dict
-
-from pyweb_api.DOM import Element, Event
-
 from typing import TYPE_CHECKING
+from urllib import request
+
+from PIL import Image, ImageTk
+
+from pyweb_api.DOM import Element, Event, TAG_MAP, Div
+
 if TYPE_CHECKING:
     from pyweb_client.main import PyWebClient
 
@@ -132,13 +133,14 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClie
     tag = element.tag
 
     if tag in ["head", "script", "style", "meta", "link"]:
+        cl.window.console.log("Unknown tag: ", tag)
         return
 
     text = "".join([c if isinstance(c, str) else "" for c in element.children])
 
     widget = None
 
-    if tag == "div":
+    if TAG_MAP.get(tag) == Div:
         widget = tk.Frame(parent_tk_widget, **widget_opts)
     elif tag in ["p", "span", "h1", "h2", "h3"]:
         font_sizes = {"h1": 22, "h2": 18, "h3": 16}
@@ -150,10 +152,10 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClie
         widget_opts["font"] = ("Arial", 12, "underline")
         link_url = element.attrs.get('href', '#')
         widget = tk.Label(parent_tk_widget, text=text, **widget_opts, cursor="hand2")
-        widget.bind("<Button-1>", lambda e: cl.location.navigate(link_url))
+        widget.bind("<Button-1>", lambda e: cl.window.location.navigate(link_url))
     elif tag == "button":
         widget = tk.Button(parent_tk_widget,
-                           command= lambda : element.dispatch_event(Event("click", element)),
+                           command=lambda: element.dispatch_event(Event("click", element)),
                            text=text or element.attrs.get("value", "<BUTTON>"),
                            **widget_opts)
     elif tag == "input":
@@ -191,7 +193,7 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClie
         except Exception:
             widget = tk.Label(parent_tk_widget, text="[Image Load Error]")
     else:
-        cl.console.log(f"UNKNOWN EL TAG: {element.tag}")
+        cl.window.console.log(f"UNKNOWN EL TAG: {element.tag}")
         widget = tk.Frame(parent_tk_widget, **widget_opts)
 
     if widget:
@@ -200,3 +202,5 @@ def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClie
         for child in element.children:
             if isinstance(child, Element):
                 render_element(widget, child, cl)
+            else:
+                print(child)
