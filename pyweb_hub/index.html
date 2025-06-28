@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PyWeb Hub - the new web with python!</title>
+
+    <script type="text/python">
+        from pyweb import Window
+
+        Window.alert("Welcome to PyWeb")
+    </script>
+</head>
+<body>
+<header>
+    PyWeb - the new web!
+</header>
+<main>
+    <section>
+        <div>
+            <h3>What is PyWeb?</h3>
+            <p>
+                <span>PyWeb</span> is an echo-system dedicated to the wed world with python and only python!
+            </p>
+        </div>
+        <div>
+            <p>
+                With <span>PyWeb</span> you get:
+            </p>
+            <ul id="include-list">
+                <li>
+                    A new DOM system writen with Python
+                </li>
+                <li>
+                    PyWeb Client - a browser, writen with - guess what? - python, that allow you to browse websites build with PyWeb
+                </li>
+                <li>
+                    PyWeb Hub -
+                </li>
+                <li>
+                    PyWebAct - React-like framework with PyWeb
+                </li>
+            </ul>
+        </div>
+    </section>
+    <section>
+        <h3>Roadmap</h3>
+    </section>
+</main>
+<script type="text/python">
+    from pyweb import Document
+
+    include_list = Document.get_element_by_id("include-list")
+    for item in include-list.children:
+        item.toggle_class("highlight")
+</script>
+</body>
+</html>
