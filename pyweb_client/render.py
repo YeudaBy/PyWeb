@@ -1,15 +1,10 @@
-import io
 import tkinter as tk
 from typing import Dict
 from typing import TYPE_CHECKING
-from urllib import request
-
-from PIL import Image, ImageTk
-
-from pyweb_api.DOM import Element, Event, TAG_MAP, Div
 
 if TYPE_CHECKING:
     from pyweb_client.main import PyWebClient
+    from pyweb_api.DOM import HTMLElement
 
 
 def parse_style_to_tk(style: Dict[str, str]) -> Dict[str, Dict[str, any]]:
@@ -96,111 +91,55 @@ def parse_style_to_tk(style: Dict[str, str]) -> Dict[str, Dict[str, any]]:
     }
 
 
-def filter_widget_options(tag: str, options: Dict[str, any]) -> Dict[str, any]:
-    allowed = {
-        "frame": {"bg", "bd", "relief", "width", "height"},
-        "label": {"text", "bg", "fg", "font", "justify", "anchor", "wraplength", "width", "height"},
-        "button": {"text", "bg", "fg", "font", "width", "height", "state"},
-        "entry": {"bg", "fg", "font", "width", "state"},
-    }
-
-    tag_map = {
-        "div": "frame",
-        "p": "label",
-        "a": "label",
-        "h1": "label",
-        "h2": "label",
-        "h3": "label",
-        "button": "button",
-        "input": "entry"
-    }
-
-    widget_type = tag_map.get(tag, "frame")
-    allowed_keys = allowed[widget_type]
-
-    return {k: v for k, v in options.items() if k in allowed_keys}
-
-
-def render_element(parent_tk_widget: tk.Widget, element: Element, cl: 'PyWebClient'):
+def render_element(parent_tk_widget: tk.Widget, element: 'HTMLElement', context: 'PyWebClient'):
     if isinstance(element, str):
         lbl = tk.Label(parent_tk_widget, text=element, wraplength=500)
         lbl.pack(anchor="w", padx=5, pady=2)
         return
 
-    style = element._get_style_dict()
-    tk_style = parse_style_to_tk(style)
-    widget_opts = filter_widget_options(element.tag, tk_style["widget"])
     tag = element.tag
-
-    if tag in ["head", "script", "style", "meta", "link"]:
-        cl.window.console.log("Unknown tag: ", tag)
-        return
-
-    text = "".join([c if isinstance(c, str) else "" for c in element.children])
-
     widget = None
 
-    if TAG_MAP.get(tag) == Div:
-        widget = tk.Frame(parent_tk_widget, **widget_opts)
-    elif tag in ["p", "span", "h1", "h2", "h3"]:
-        font_sizes = {"h1": 22, "h2": 18, "h3": 16}
-        if tag.startswith("h"):
-            widget_opts["font"] = ("Arial", font_sizes[tag], "bold")
-        widget = tk.Label(parent_tk_widget, text=text, **widget_opts)
-    elif tag == "a":
-        widget_opts["fg"] = "blue"
-        widget_opts["font"] = ("Arial", 12, "underline")
-        link_url = element.attrs.get('href', '#')
-        widget = tk.Label(parent_tk_widget, text=text, **widget_opts, cursor="hand2")
-        widget.bind("<Button-1>", lambda e: cl.window.location.navigate(link_url))
-    elif tag == "button":
-        widget = tk.Button(parent_tk_widget,
-                           command=lambda: element.dispatch_event(Event("click", element)),
-                           text=text or element.attrs.get("value", "<BUTTON>"),
-                           **widget_opts)
-    elif tag == "input":
-        widget = tk.Entry(parent_tk_widget, **widget_opts)
-    elif tag == "textarea":
-        widget = tk.Text(parent_tk_widget, height=5, width=30)
-        widget.insert("1.0", text)
-    elif tag in ["ul", "ol"]:
-        widget = tk.Frame(parent_tk_widget, **widget_opts)
-        for idx, child in enumerate(element.children):
-            if isinstance(child, Element) and child.tag == "li":
-                li_text = "".join([c if isinstance(c, str) else "" for c in child.children])
-                prefix = "• " if tag == "ul" else f"{idx + 1}. "
-                li_label = tk.Label(widget, text=prefix + li_text, anchor="w", justify="left")
-                li_label.pack(anchor="w", padx=10)
-    elif tag == "li":
-        return  # already handled in ul/ol
-    elif tag == "br":
-        widget = tk.Label(parent_tk_widget, text="")
-    elif tag == "hr":
-        widget = tk.Frame(parent_tk_widget, height=2, bg="gray")
-    elif tag == "img":
-        src = element.attrs.get("src", "")
-        try:
-            if src.startswith("http"):
-                with request.urlopen(src) as u:
-                    raw_data = u.read()
-                im = Image.open(io.BytesIO(raw_data))
-            else:
-                im = Image.open(src)
-            im = im.resize((150, 100))
-            photo = ImageTk.PhotoImage(im)
-            widget = tk.Label(parent_tk_widget, image=photo)
-            widget.image = photo
-        except Exception:
-            widget = tk.Label(parent_tk_widget, text="[Image Load Error]")
-    else:
-        cl.window.console.log(f"UNKNOWN EL TAG: {element.tag}")
-        widget = tk.Frame(parent_tk_widget, **widget_opts)
+    from pyweb_api.DOM import get_cls_by_tag
+    cls_t = get_cls_by_tag(tag)
+    if cls_t is not None:
+        cls = cls_t()
+        print(cls_t, cls)
+        widget = cls.render(parent_tk_widget, context)
 
     if widget:
         element._tk_widget = widget
-        widget.pack(fill="x", **tk_style["pack"])
-        for child in element.children:
-            if isinstance(child, Element):
-                render_element(widget, child, cl)
-            else:
-                print(child)
+        widget.pack(fill="x")
+
+    for child in element.children:
+        render_element(widget, child, context)
+
+#  elif tag in ["ul", "ol"]:
+#         widget = tk.Frame(parent_tk_widget, **widget_opts)
+#         for idx, child in enumerate(element.children):
+#             if isinstance(child, Element) and child.tag == "li":
+#                 li_text = "".join([c if isinstance(c, str) else "" for c in child.children])
+#                 prefix = "• " if tag == "ul" else f"{idx + 1}. "
+#                 li_label = tk.Label(widget, text=prefix + li_text, anchor="w", justify="left")
+#                 li_label.pack(anchor="w", padx=10)
+#     elif tag == "li":
+#         return  # already handled in ul/ol
+#     elif tag == "br":
+#         widget = tk.Label(parent_tk_widget, text="")
+#     elif tag == "hr":
+#         widget = tk.Frame(parent_tk_widget, height=2, bg="gray")
+#     elif tag == "img":
+#         src = element.attrs.get("src", "")
+#         try:
+#             if src.startswith("http"):
+#                 with request.urlopen(src) as u:
+#                     raw_data = u.read()
+#                 im = Image.open(io.BytesIO(raw_data))
+#             else:
+#                 im = Image.open(src)
+#             im = im.resize((150, 100))
+#             photo = ImageTk.PhotoImage(im)
+#             widget = tk.Label(parent_tk_widget, image=photo)
+#             widget.image = photo
+#         except Exception:
+#             widget = tk.Label(parent_tk_widget, text="[Image Load Error]")

@@ -1,11 +1,11 @@
 import tkinter as tk
 from tkinter import filedialog, scrolledtext
 
-from pyweb_api.DOM import Div, P, Button, Element
+from pyweb_api.DOM import HTMLPElementHTML, HTMLDivElement, HTMLButtonElement
 from pyweb_api.Window.main import Window
 from pyweb_client.html_parser import PyHTMLParser
 from pyweb_client.layout.RenderArea import RenderArea
-from pyweb_client.network import fetch_html
+from pyweb_client.network import fetch_text
 from pyweb_client.render import render_element
 
 
@@ -40,20 +40,24 @@ class PyWebClient:
             self.console_output.insert(tk.END, f"<{level}>: {message}\n")
             self.console_output.see(tk.END)
 
+    def _on_click_root(self, event):
+        widget = event.widget.winfo_containing(event.x_root, event.y_root)
+        self.window.console.log(widget, "clicked")
+
     def _on_location_change(self, url):
         self.window.console.log(f"Navigating to: {url}")
-        self.history_menu.add_command(label=url, command=lambda : self.window.location.navigate(url))
+        self.history_menu.add_command(label=url, command=lambda: self.window.location.navigate(url))
         self.render_area.clear()
         self.address_input.delete(0, tk.END)
         self.address_input.insert(0, url)
 
         if url == "app://home":
-            root_dom_element = Div()
-            p = P()
+            root_dom_element = HTMLDivElement()
+            p = HTMLPElementHTML()
             p.append_child("ברוך הבא ל-PyWeb Client!")
             root_dom_element.append_child(p)
 
-            btn = Button(attrs={"value": "Click"})
+            btn = HTMLButtonElement(attrs={"value": "Click"})
 
             def click_test(event):
                 self.window.console.log(event)
@@ -66,10 +70,10 @@ class PyWebClient:
             self.window.console.log("Home page rendered.")
 
         elif url == "app://example_page":
-            root_dom_element = Div()
-            root_dom_element.append_child(P())
+            root_dom_element = HTMLDivElement()
+            root_dom_element.append_child(HTMLPElementHTML())
             root_dom_element.children[-1].append_child("זהו דף לדוגמה.")
-            btn = Button(attrs={"value": "חזור לדף הבית"})
+            btn = HTMLButtonElement(attrs={"value": "חזור לדף הבית"})
             root_dom_element.append_child(btn)
             render_element(self.render_area.widget, root_dom_element, self)
             self.window.console.log("Example page rendered.")
@@ -79,31 +83,34 @@ class PyWebClient:
             self._load_html_file(file_path)
 
         elif url.startswith("http"):
-            try:
-                content = fetch_html(url)
+            # try:
+                content = fetch_text(url)
                 parser = PyHTMLParser()
                 parser.feed(content)
                 render_element(self.render_area.widget, parser.root, self)
-            except Exception as e:
-                content = P()
-                content.children.append(f"ERROR: {e}")
-                render_element(self.render_area.widget, content, self)
+            # except Exception as e:
+            #     print(e.with_traceback(e.__traceback__))
+            #     self.window.console.error(e)
+            #     content = HTMLPElementHTML()
+            #     content.children.append(f"ERROR: {e}")
+            #     render_element(self.render_area.widget, content, self)
 
         elif url.startswith("/"):
             try:
-                content = fetch_html(self.address_input.get() + url)
+                content = fetch_text(self.address_input.get() + url)
                 parser = PyHTMLParser()
                 parser.feed(content)
                 render_element(self.render_area.widget, parser.root, self)
             except Exception as e:
-                content = P()
+                self.window.console.error(e)
+                content = HTMLPElementHTML()
                 content.children.append(f"ERROR: {e}")
                 render_element(self.render_area.widget, content, self)
 
         else:
             self.window.console.error(f"Unknown URL scheme or page: {url}")
-            root_dom_element = Div()
-            root_dom_element.append_child(P())
+            root_dom_element = HTMLDivElement()
+            root_dom_element.append_child(HTMLPElementHTML())
             root_dom_element.children[-1].append_child(f"שגיאה: לא ניתן לטעון את הכתובת: {url}")
             render_element(self.render_area.widget, root_dom_element, self)
 
@@ -123,7 +130,6 @@ class PyWebClient:
     def reload(self):
         self.render_area.clear()
         self.window.location.reload()
-
 
     def render_layout(self):
         self.root.title("PyWeb Client v0")
@@ -162,6 +168,7 @@ class PyWebClient:
         self.render_area.render_init()
         # Log to console after it's created
         self.window.console.log("Console initialized.")
+        self.root.bind("<Button-1>", self._on_click_root)
 
     def build_menu(self):
         menubar = tk.Menu(self.root)

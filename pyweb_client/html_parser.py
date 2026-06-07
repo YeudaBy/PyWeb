@@ -1,18 +1,24 @@
 from html.parser import HTMLParser
-from pyweb_api.DOM import Element, TAG_MAP
+
+from typing import TYPE_CHECKING
+
+
 
 class PyHTMLParser(HTMLParser):
     def __init__(self):
+        from pyweb_api.DOM import HTMLElement
         super().__init__()
-        self.root = Element("root")
+        self.root = HTMLElement("document")
         self.current = self.root
 
     def handle_starttag(self, tag, attrs):
-        element_cls = TAG_MAP.get(tag)
+        from pyweb_api.DOM import HTMLElement
+        from pyweb_api.DOM import get_cls_by_tag
+        element_cls = get_cls_by_tag(tag)
         if not element_cls:
-            el = Element(tag, dict(attrs), parent=self.current)
+            el = HTMLElement(tag, dict(attrs), parent=self.current)
         else:
-            el = element_cls(dict(attrs), parent=self.current)
+            el = element_cls(dict(attrs), self.current)
         self.current.append_child(el)
         self.current = el
 

@@ -1,21 +1,23 @@
-from typing import List
+from typing import List, TYPE_CHECKING
+from pyweb_api.DOM import HTMLDocumentElement
 
-from pyweb_api.DOM import Element, DocumentEL
+if TYPE_CHECKING:
+    from pyweb_api.DOM import HTMLElement
 
 
 class Document:
 
     def __init__(self):
-        self.children: List[Element | None] = []
-        doc_el = DocumentEL()
+        self.children: List['HTMLElement' | None] = []
+        doc_el = HTMLDocumentElement()
         self.children.append(doc_el)
 
-    def get_element_by_id(self, _id: str) -> Element | None:
-        def recurse_search(element: Element) -> Element | None:
+    def get_element_by_id(self, _id: str) :
+        def recurse_search(element: 'HTMLElement'):
             if hasattr(element, "id") and element.id == _id:
                 return element
             for child in element.children:
-                if isinstance(child, Element):
+                if isinstance(child, 'HTMLElement'):
                     result = recurse_search(child)
                     if result:
                         return result
@@ -26,8 +28,8 @@ class Document:
             return recurse_search(root)
         return None
 
-    def create_element(self, tag_name: str) -> Element:
-        el = Element(tag_name)
+    def create_element(self, tag_name: str) -> 'HTMLElement':
+        el = 'HTMLElement'(tag_name)
         self.children[0].children.append(el)
         return el
 
