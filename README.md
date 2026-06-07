@@ -49,6 +49,25 @@ Very slow, step by step, component after another.
 
 First I want to have a working POC that can render an interactive HTML page with some scripting, that I will dig into the heavy stuff, such as security, network, performance, UI and the whole package.
 
+
+## Use `pyweb`
+
+> Please note that this version (and probably all the versions) of `pyweb` have a lot of security problems! 
+>
+> Make sure to not browse any website you don't fully trust.
+> 
+> Basically, **You should NOT use this program on your computer.**
+
+You can download the `.pyz` file from the releases page, or built it yourself from source:
+- make sure you have `python3` and `git` installed
+- run the following commands:
+```commandline
+git clone https://github.com/YeudaBy/PyWeb          // clone the repo
+python -m zipapp pyweb -p "/usr/bin/env python3"   // build a `.pyz` file
+chmod u+x pyweb.pyz                               // give the file execution permissions
+./pyweb.pyz                                      // run the program
+```
+
 ## `pyweb` Philosophy
 
 I want this project to be decent and truly worth the time invested in it, so I’ve set a few rules for myself to guide me throughout development:

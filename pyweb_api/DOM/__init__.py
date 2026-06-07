@@ -10,7 +10,6 @@ from pyweb_api.DOM.HTMLTextElement import HTMLH1Element, HTMLH2Element, HTMLH3El
     HTMLH6Element, HTMLPElementHTML, HTMLSpanElement, HTMLStrongElement, HTMLAElement
 from pyweb_api.DOM.main import HTMLDocumentElement
 from pyweb_api.Window.main import Window
-from pyweb_client.main import PyWebClient
 
 TAG_MAP = {
     # HTMLBlockElement
