@@ -15,6 +15,45 @@ class HTMLElement:
         self.attrs = attrs or {}
         self.children: List[HTMLElement | str] = []
         self.parent = parent
+        self.event_handlers = {}
+
+    @property
+    def listeners(self):
+        return self.event_handlers
+
+    def add_event_listener(self, type_, handler, phase="bubble"):
+        key = (type_, phase)
+        if key not in self.event_handlers:
+            self.event_handlers[key] = []
+        self.event_handlers[key].append(handler)
+
+    def dispatch_event(self, event):
+        path = self._get_ancestry_path()
+
+        # CAPTURING PHASE
+        for el in reversed(path):
+            event.current_target = el
+            handlers = el.listeners.get((event.type, "capture"), [])
+            for handler in handlers:
+                handler(event)
+                if event._stopped:
+                    return
+
+        # TARGET PHASE
+        event.current_target = self
+        for handler in self.event_handlers.get((event.type, "bubble"), []):
+            handler(event)
+            if event._stopped:
+                return
+
+        # BUBBLING PHASE
+        for el in path:
+            event.current_target = el
+            handlers = el.listeners.get((event.type, "bubble"), [])
+            for handler in handlers:
+                handler(event)
+                if event._stopped:
+                    return
 
     def render(self, parent_widget: Widget, context) -> Widget:
         raise NotImplementedError("Subclasses should implement this")
@@ -37,6 +76,11 @@ class HTMLElement:
 
     def _get_style_dict(self) -> Dict[str, str]:
         styles = {}
+        
+        try:
+            styles.update(self.get_default_styles())
+        except:
+            pass
 
         for k, v in self.attrs.items():
             if k not in ["style", "id", "class"]:

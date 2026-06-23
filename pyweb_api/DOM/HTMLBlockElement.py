@@ -12,11 +12,6 @@ class HTMLBLockElement(HTMLElement):
     def render(self, parent_widget, context) -> tk.Widget:
         frame = tk.Frame(parent_widget, name=self.tag)
         frame.pack(fill="x", padx=5, pady=5)
-        for child in self.children:
-            if isinstance(child, HTMLElement):
-                child.render(frame, context)
-            else:
-                tk.Label(frame, text=child, name=self.tag).pack()
         return frame
 
 

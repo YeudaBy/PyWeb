@@ -5,7 +5,7 @@ import os
 # Add the project root to the path so we can import the modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pyweb_api.DOM import Element, Event, Div, P, Button, A, H1, H2, H3, Input, TAG_MAP
+from pyweb_api.DOM import Element, Event, Div, P, Button, A, H1, H2, H3, Input, TAG_MAP, Section, Header, Main
 
 
 class TestElement(unittest.TestCase):
@@ -157,11 +157,9 @@ class TestElementTypes(unittest.TestCase):
         self.assertEqual(button.attrs["value"], "Click Me")
     
     def test_input_creation(self):
-        """Test Input element creation - note: this has a bug in DOM.py"""
+        """Test Input element creation"""
         input_elem = Input({"type": "text", "name": "username"})
-        # Note: There's a bug - Input.__init__ calls super().__init__('button', ...)
-        # instead of 'input'
-        self.assertEqual(input_elem.tag, "button")  # This should be "input"
+        self.assertEqual(input_elem.tag, "input")
         self.assertEqual(input_elem.attrs["type"], "text")
     
     def test_header_elements(self):
@@ -191,9 +189,9 @@ class TestTagMap(unittest.TestCase):
         """Test that TAG_MAP contains expected mappings"""
         expected_tags = {
             "div": Div,
-            "section": Div,
-            "header": Div,
-            "main": Div,
+            "section": Section,
+            "header": Header,
+            "main": Main,
             "p": P,
             "button": Button,
             "input": Input,

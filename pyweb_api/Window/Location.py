@@ -10,6 +10,11 @@ class Location:
         return self._current_url
 
     def navigate(self, url: str):
+        if "://" not in url:
+            from urllib.parse import urljoin
+            if self._current_url:
+                url = urljoin(self._current_url, url)
+
         if self.current_index < len(self.history) - 1:
             self.history = self.history[:self.current_index + 1]
 
@@ -24,7 +29,6 @@ class Location:
             self._current_url = self.history[self.current_index]
             self.on_location_change(self._current_url)
             return self._current_url
-        self.on_location_change(None)
         return None
 
     def forward(self):
@@ -33,7 +37,6 @@ class Location:
             self._current_url = self.history[self.current_index]
             self.on_location_change(self._current_url)
             return self._current_url
-        self.on_location_change(None)
         return None
 
     def clear_history(self):

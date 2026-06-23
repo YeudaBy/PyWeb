@@ -20,8 +20,8 @@ class HTMLTitleElement(HTMLMetaElement):
         super().__init__("title", attrs, children)
 
     def render(self, parent_widget: Widget, context):
-        text = " ".join(self.children)
-        context.root.title = text
+        text = " ".join([c if isinstance(c, str) else "" for c in self.children])
+        context.root.title(text)
 
 
 class HTMLScriptElement(HTMLMetaElement):
@@ -33,6 +33,8 @@ class HTMLScriptElement(HTMLMetaElement):
         return self.attrs.get("type") in ["text/python", "python", "text/pyweb"]
 
     def render(self, parent_widget: Widget, context: 'PyWebClient'):
+        import sys
+        import types
         from pyweb_api.DOM import get_globals
 
         if not self.is_python:
@@ -42,7 +44,6 @@ class HTMLScriptElement(HTMLMetaElement):
         content = ""
         src = self.attrs.get("src")
         if src is not None:
-
             if src.startswith("http"):
                 content = fetch_text(src)
             elif src.startswith("/") or src.startswith("file://"):
@@ -50,7 +51,19 @@ class HTMLScriptElement(HTMLMetaElement):
                     content = f.read()
             else:
                 context.window.console.warn(f"Ignored python script with src {src}")
+        else:
+            content = "".join([c if isinstance(c, str) else "" for c in self.children])
 
-        print(content)
-        context.window.console.log(f"executing script: {src}")
-        exec(content, get_globals(context))
+        # Create virtual pyweb module and insert into sys.modules
+        pyweb_module = types.ModuleType("pyweb")
+        pyweb_module.Window = context.window
+        pyweb_module.Document = context.window.document
+        sys.modules["pyweb"] = pyweb_module
+
+        context.window.console.log(f"executing script: {src or 'inline'}")
+        globals_dict = get_globals(context)
+        globals_dict["pyweb"] = pyweb_module
+        try:
+            exec(content, globals_dict)
+        except Exception as e:
+            context.window.console.error(f"Script error: {e}")

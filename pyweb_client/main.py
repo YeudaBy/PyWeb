@@ -1,137 +1,110 @@
 import tkinter as tk
 from tkinter import filedialog, scrolledtext
+import threading
+from typing import Optional
 
-from pyweb_api.DOM import HTMLPElementHTML, HTMLDivElement, HTMLButtonElement
 from pyweb_api.Window.main import Window
-from pyweb_client.html_parser import PyHTMLParser
 from pyweb_client.layout.RenderArea import RenderArea
-from pyweb_client.network import fetch_text
 from pyweb_client.render import render_element
+from pyweb_client.router import ProtocolRouter, AppSchemeHandler, FileSchemeHandler, HttpSchemeHandler, RelativeSchemeHandler
 
 
 class PyWebClient:
-    def __init__(self, root):
-        self.root = root
+    def __init__(self, root: tk.Tk):
+        self.root: tk.Tk = root
 
-        self.render_area = RenderArea(self.root, self)
+        self.render_area: RenderArea = RenderArea(self.root, self)
+        self.address_input: Optional[tk.Entry] = None
+        self.console_output: Optional[scrolledtext.ScrolledText] = None
 
-        self.address_input = None
-        self.console_output = None
-
-        self.window = Window(self)
+        self.window: Window = Window(self)
 
         # Maximize window and focus
-        self.root.state('zoomed')  # For Windows/Linux
+        self.root.state('zoomed')
         self.root.focus_force()
+
+        # Initialize protocol scheme router
+        self.router: ProtocolRouter = ProtocolRouter()
+        self.router.register_handler("app", AppSchemeHandler(self))
+        self.router.register_handler("file", FileSchemeHandler())
+        self.router.register_handler("http", HttpSchemeHandler())
+        self.router.register_handler("https", HttpSchemeHandler())
+        self.router.register_handler("relative", RelativeSchemeHandler(self))
 
         self.render_layout()
         self.build_menu()
 
-    def render(self):
+        # Start interactive REPL console asynchronously in background
+        from pyweb_client.script_engine import PyWebInterpreter
+        self.interpreter: PyWebInterpreter = PyWebInterpreter(self)
+        threading.Thread(target=self.interpreter.open_console, daemon=True).start()
+
+    def render(self) -> None:
         self.root.mainloop()
 
-    def on_open_file(self):
+    def on_open_file(self) -> None:
         file_path = filedialog.askopenfilename(filetypes=[("HTML files", "*.html")])
         if file_path:
             self.window.location.navigate(f"file://{file_path}")
 
-    def _render_log(self, level, message):
+    def _render_log(self, level: str, message: str) -> None:
         if self.console_output:
             self.console_output.insert(tk.END, f"<{level}>: {message}\n")
             self.console_output.see(tk.END)
 
-    def _on_click_root(self, event):
+    def _on_click_root(self, event: tk.Event) -> None:
         widget = event.widget.winfo_containing(event.x_root, event.y_root)
         self.window.console.log(widget, "clicked")
 
-    def _on_location_change(self, url):
+    def _on_location_change(self, url: str) -> None:
         self.window.console.log(f"Navigating to: {url}")
         self.history_menu.add_command(label=url, command=lambda: self.window.location.navigate(url))
         self.render_area.clear()
-        self.address_input.delete(0, tk.END)
-        self.address_input.insert(0, url)
+        
+        if self.address_input:
+            self.address_input.delete(0, tk.END)
+            self.address_input.insert(0, url)
 
-        if url == "app://home":
-            root_dom_element = HTMLDivElement()
-            p = HTMLPElementHTML()
-            p.append_child("ברוך הבא ל-PyWeb Client!")
-            root_dom_element.append_child(p)
-
-            btn = HTMLButtonElement(attrs={"value": "Click"})
-
-            def click_test(event):
-                self.window.console.log(event)
-                btn.set_text("Clicked!")
-
-            root_dom_element.append_child(btn)
-            btn.add_event_listener("click", click_test)
-
-            render_element(self.render_area.widget, root_dom_element, self)
-            self.window.console.log("Home page rendered.")
-
-        elif url == "app://example_page":
-            root_dom_element = HTMLDivElement()
-            root_dom_element.append_child(HTMLPElementHTML())
-            root_dom_element.children[-1].append_child("זהו דף לדוגמה.")
-            btn = HTMLButtonElement(attrs={"value": "חזור לדף הבית"})
-            root_dom_element.append_child(btn)
-            render_element(self.render_area.widget, root_dom_element, self)
-            self.window.console.log("Example page rendered.")
-
-        elif url.startswith("file://"):
-            file_path = url[len("file://"):]
-            self._load_html_file(file_path)
-
-        elif url.startswith("http"):
-            # try:
-                content = fetch_text(url)
-                parser = PyHTMLParser()
-                parser.feed(content)
-                render_element(self.render_area.widget, parser.root, self)
-            # except Exception as e:
-            #     print(e.with_traceback(e.__traceback__))
-            #     self.window.console.error(e)
-            #     content = HTMLPElementHTML()
-            #     content.children.append(f"ERROR: {e}")
-            #     render_element(self.render_area.widget, content, self)
-
-        elif url.startswith("/"):
+        # Asynchronously resolve url via scheme handlers
+        def load_thread() -> None:
             try:
-                content = fetch_text(self.address_input.get() + url)
-                parser = PyHTMLParser()
-                parser.feed(content)
-                render_element(self.render_area.widget, parser.root, self)
+                response = self.router.resolve(url)
+                self.root.after(0, lambda: self._render_content(response))
             except Exception as e:
-                self.window.console.error(e)
-                content = HTMLPElementHTML()
-                content.children.append(f"ERROR: {e}")
-                render_element(self.render_area.widget, content, self)
+                self.root.after(0, lambda: self._render_error(url, e))
 
-        else:
-            self.window.console.error(f"Unknown URL scheme or page: {url}")
-            root_dom_element = HTMLDivElement()
-            root_dom_element.append_child(HTMLPElementHTML())
-            root_dom_element.children[-1].append_child(f"שגיאה: לא ניתן לטעון את הכתובת: {url}")
-            render_element(self.render_area.widget, root_dom_element, self)
+        threading.Thread(target=load_thread, daemon=True).start()
 
-    def _load_html_file(self, file_path):
+    def _render_content(self, response) -> None:
+        from pyweb_api.DOM import HTMLElement
+        from pyweb_client.html_parser import PyHTMLParser
+        
         try:
-            with open(file_path, 'r', encoding="utf-8") as f:
-                content = f.read()
-                self.window.console.log(f"Selected file: {file_path}")
+            if isinstance(response.content, HTMLElement):
+                render_element(self.render_area.widget, response.content, self)
+            else:
                 parser = PyHTMLParser()
-                parser.feed(content)
-                print("root", parser.root)
+                parser.feed(response.content)
                 render_element(self.render_area.widget, parser.root, self)
-                self.window.console.log(f'file {file_path} rendered!')
+            self.window.console.log("Page rendered successfully.")
         except Exception as e:
-            self.window.console.error(e)
+            self._render_error(self.window.location.href or "Unknown", e)
 
-    def reload(self):
+    def _render_error(self, url: str, exception: Exception) -> None:
+        self.window.console.error(f"Navigation error for {url}: {exception}")
+        from pyweb_api.DOM import HTMLDivElement, HTMLPElementHTML
+        root_dom_element = HTMLDivElement()
+        p = HTMLPElementHTML()
+        p.append_child(f"שגיאה: לא ניתן לטעון את הכתובת: {url}")
+        p.append_child(f"\nשגיאה: {exception}")
+        root_dom_element.append_child(p)
+        render_element(self.render_area.widget, root_dom_element, self)
+
+    def reload(self) -> None:
         self.render_area.clear()
         self.window.location.reload()
 
-    def render_layout(self):
+    def render_layout(self) -> None:
         self.root.title("PyWeb Client v0")
         self.root.configure(bg="#f0f0f0")
 
@@ -147,11 +120,11 @@ class PyWebClient:
 
         forward_btn = tk.Button(top_bar, text=">", command=self.window.location.forward, bg="#4285F4", relief="raised")
         forward_btn.pack(side="left", pady=5, padx=(0, 15))
-        #
+
         self.address_input = tk.Entry(top_bar, width=60, relief="sunken", bd=2, bg="white")
         self.address_input.insert(0, "app://home")
         self.address_input.pack(side="left", pady=5, fill="y")
-        #
+
         go_btn = tk.Button(top_bar, text="Go", command=lambda: self.window.location.navigate(self.address_input.get()),
                            bg="#4285F4",
                            relief="raised")
@@ -169,8 +142,19 @@ class PyWebClient:
         # Log to console after it's created
         self.window.console.log("Console initialized.")
         self.root.bind("<Button-1>", self._on_click_root)
+        self.root.bind("<F12>", lambda e: self.open_network_inspector())
+        self.root.bind("<Control-Shift-Key-I>", lambda e: self.open_dom_inspector())
+        # self.root.bind("<Control-Shift-key-i>", lambda e: self.open_dom_inspector())
 
-    def build_menu(self):
+    def open_network_inspector(self) -> None:
+        from pyweb_client.debug_tools import NetworkInspector
+        NetworkInspector(self)
+
+    def open_dom_inspector(self) -> None:
+        from pyweb_client.debug_tools import DOMInspector
+        DOMInspector(self)
+
+    def build_menu(self) -> None:
         menubar = tk.Menu(self.root)
 
         file_menu = tk.Menu(menubar, tearoff=0)
@@ -188,6 +172,11 @@ class PyWebClient:
         menubar.add_cascade(label="History", menu=history_menu)
         self.history_menu = history_menu
 
+        debug_menu = tk.Menu(menubar, tearoff=0)
+        debug_menu.add_command(label="Network Inspector", command=self.open_network_inspector)
+        debug_menu.add_command(label="DOM Inspector", command=self.open_dom_inspector)
+        menubar.add_cascade(label="Debug", menu=debug_menu)
+
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label="About", command=lambda: self.window.console.log("PyWeb Client v0"))
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -195,7 +184,7 @@ class PyWebClient:
         self.root.config(menu=menubar)
 
 
-def run():
+def run() -> None:
     root = tk.Tk()
     client = PyWebClient(root=root)
     client.render()

@@ -8,7 +8,7 @@ class PyHTMLParser(HTMLParser):
     def __init__(self):
         from pyweb_api.DOM import HTMLElement
         super().__init__()
-        self.root = HTMLElement("document")
+        self.root = HTMLElement("root")
         self.current = self.root
 
     def handle_starttag(self, tag, attrs):

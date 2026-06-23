@@ -13,14 +13,26 @@ class HTMLTextElement(HTMLElement):
         }
 
     def render(self, parent_widget, context):
-        styles = self.get_default_styles()
+        styles = self._get_style_dict()
+        font_family = styles.get("font-family", "Arial")
+        if font_family == "Ariel":
+            font_family = "Arial"
+        font_size = styles.get("font-size", 12)
+        weight = "bold" if styles.get("font-weight") == "bold" or styles.get("font-width") == 600 else "normal"
+        
+        if self.tag in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+            weight = "bold"
+            font = (font_family, font_size, weight)
+        else:
+            font = (font_family, font_size)
+
         lbl = tk.Label(
             parent_widget,
             text=self.text,
             wraplength=600,
             cursor="xterm",
-            fg=styles.get("color"),
-            font=("Ariel", styles.get("font-size", 12))
+            fg=styles.get("color", "black"),
+            font=font
         )
         lbl.pack(anchor="w", pady=4)
         return lbl
@@ -54,7 +66,7 @@ class HTMLH2Element(HTMLHeadingElement):
 
     def get_default_styles(self):
         s = super().get_default_styles()
-        s["font-size"] = 20
+        s["font-size"] = 18
         return s
 
 
@@ -64,7 +76,7 @@ class HTMLH3Element(HTMLHeadingElement):
 
     def get_default_styles(self):
         s = super().get_default_styles()
-        s["font-size"] = 18
+        s["font-size"] = 16
         return s
 
 

@@ -2,17 +2,20 @@ class Console:
     def __init__(self, write_to_console):
         self.write_to_console = write_to_console
 
+    def _args_to_str(self, args_tuple) -> str:
+        return " ".join([str(a) for a in args_tuple])
+
     def log(self, *args):
-        print(self._args_to_str(args))
-        self.write_to_console("log", self._args_to_str(args))
+        msg = self._args_to_str(args)
+        print(msg)
+        self.write_to_console("log", msg)
 
     def error(self, *args):
-        print("---ERROR:", self._args_to_str(args))
-        self.write_to_console("error", self._args_to_str(args))
+        msg = self._args_to_str(args)
+        print("---ERROR:", msg)
+        self.write_to_console("error", msg)
 
     def warn(self, *args):
-        print("---WARN:", self._args_to_str(args))
-        self.write_to_console("warn", self._args_to_str(args))
-
-    def _args_to_str(*args):
-        return " ".join([str(a) for a in args])
+        msg = self._args_to_str(args)
+        print("---WARN:", msg)
+        self.write_to_console("warn", msg)

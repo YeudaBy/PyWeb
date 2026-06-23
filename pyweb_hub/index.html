@@ -2,56 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PyWeb Hub - the new web with python!</title>
-
-    <script type="text/python">
-        from pyweb import Window
-
-        Window.alert("Welcome to PyWeb")
-    </script>
+    <title>PyWeb Hub - Welcome</title>
 </head>
 <body>
-<header>
-    PyWeb - the new web!
+<header style="background-color: #f8f9fa; padding: 20px; text-align: center; border-style: solid; border-width: 1px;">
+    <h1>PyWeb Hub</h1>
+    <p>The new web, built with Python!</p>
+    <nav style="margin: 10px;">
+        <a href="index.html" style="margin-right: 15px; font-weight: bold;">Home</a>
+        <a href="docs.html" style="margin-right: 15px; font-weight: bold;">Documentation</a>
+        <a href="examples.html" style="font-weight: bold;">Interactive Examples</a>
+    </nav>
 </header>
-<main>
+<main style="padding: 20px;">
     <section>
-        <div>
-            <h3>What is PyWeb?</h3>
-            <p>
-                <span>PyWeb</span> is an echo-system dedicated to the wed world with python and only python!
-            </p>
-        </div>
-        <div>
-            <p>
-                With <span>PyWeb</span> you get:
-            </p>
-            <ul id="include-list">
-                <li>
-                    A new DOM system writen with Python
-                </li>
-                <li>
-                    PyWeb Client - a browser, writen with - guess what? - python, that allow you to browse websites build with PyWeb
-                </li>
-                <li>
-                    PyWeb Hub -
-                </li>
-                <li>
-                    PyWebAct - React-like framework with PyWeb
-                </li>
-            </ul>
-        </div>
-    </section>
-    <section>
-        <h3>Roadmap</h3>
+        <h2>Welcome to PyWeb!</h2>
+        <p>This is the official Hub for PyWeb, demonstrating the capabilities of our Python-based browser engine.</p>
+        
+        <h3>What is PyWeb?</h3>
+        <p>PyWeb is a proof of concept project that aims to build a web browser and ecosystem entirely from scratch using Python, bypassing JavaScript entirely.</p>
+        
+        <h3>Features Showcase</h3>
+        <ul>
+            <li>Python-based DOM Engine</li>
+            <li>Native Python Script Execution</li>
+            <li>Built-in APIs: fetch, localStorage, history, navigator</li>
+            <li>Custom UI rendering using Tkinter</li>
+        </ul>
+        
+        <p style="margin-top: 20px;">Click on <strong>Interactive Examples</strong> above to see PyWeb in action!</p>
     </section>
 </main>
 <script type="text/python">
-    from pyweb import Document
-
-    include_list = Document.get_element_by_id("include-list")
-    for item in include-list.children:
-        item.toggle_class("highlight")
+    from pyweb import Window
+    Window.console.log("Welcome to PyWeb Hub - Home Page!")
 </script>
 </body>
 </html>

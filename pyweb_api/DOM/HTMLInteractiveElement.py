@@ -9,41 +9,6 @@ from pyweb_api.DOM.HTMLElement import HTMLElement
 class HTMLInteractiveElement(HTMLElement):
     def __init__(self, tag, attrs=None, children=None):
         super().__init__(tag, attrs, children)
-        self.event_handlers = {}
-
-    def add_event_listener(self, type_, handler, phase="bubble"):
-        key = (type_, phase)
-        if key not in self.event_handlers:
-            self.event_handlers[key] = []
-        self.event_handlers[key].append(handler)
-
-    def dispatch_event(self, event: HTMLEvent):
-        path = self._get_ancestry_path()
-
-        # CAPTURING PHASE
-        for el in reversed(path):
-            event.current_target = el
-            handlers = el.listeners.get((event.type, "capture"), [])
-            for handler in handlers:
-                handler(event)
-                if event._stopped:
-                    return
-
-        # TARGET PHASE
-        event.current_target = self
-        for handler in self.event_handlers.get((event.type, "bubble"), []):
-            handler(event)
-            if event._stopped:
-                return
-
-        # BUBBLING PHASE
-        for el in path:
-            event.current_target = el
-            handlers = el.listeners.get((event.type, "bubble"), [])
-            for handler in handlers:
-                handler(event)
-                if event._stopped:
-                    return
 
     def get_default_styles(self):
         return {
@@ -64,10 +29,16 @@ class HTMLButtonElement(HTMLInteractiveElement):
 
     def render(self, parent_widget, context):
         label = self.attrs.get("value", "Click")
+        
+        def click_callback():
+            from pyweb_api.DOM.HTMLEvent import Event
+            event = Event("click", self)
+            self.dispatch_event(event)
+
         btn = tk.Button(
             parent_widget,
             text=label,
-            command=self.event_handlers.get("click"),
+            command=click_callback,
             cursor="hand2" if self.attrs.get("disabled") == True else "X_cursor"
         )
         btn.pack(pady=5)
@@ -77,6 +48,9 @@ class HTMLButtonElement(HTMLInteractiveElement):
 class HTMLFormElement(HTMLInteractiveElement, HTMLBLockElement):
     def __init__(self, attrs=None, children=None):
         super().__init__("form", attrs, children)
+
+    def render(self, parent_widget, context):
+        return HTMLBLockElement.render(self, parent_widget, context)
 
 
 class HTMLInputElement(HTMLInteractiveElement, HTMLBLockElement):

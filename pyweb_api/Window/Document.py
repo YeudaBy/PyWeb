@@ -29,7 +29,12 @@ class Document:
         return None
 
     def create_element(self, tag_name: str) -> 'HTMLElement':
-        el = 'HTMLElement'(tag_name)
-        self.children[0].children.append(el)
+        from pyweb_api.DOM import HTMLElement, get_cls_by_tag
+        cls = get_cls_by_tag(tag_name)
+        if cls:
+            el = cls()
+        else:
+            el = HTMLElement(tag_name)
+        self.children[0].append_child(el)
         return el
 

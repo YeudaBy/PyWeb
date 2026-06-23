@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PyWeb Hub - Examples</title>
+</head>
+<body>
+<header style="background-color: #f8f9fa; padding: 20px; text-align: center; border-style: solid; border-width: 1px;">
+    <h1>PyWeb Hub</h1>
+    <p>The new web, built with Python!</p>
+    <nav style="margin: 10px;">
+        <a href="index.html" style="margin-right: 15px; font-weight: bold;">Home</a>
+        <a href="docs.html" style="margin-right: 15px; font-weight: bold;">Documentation</a>
+        <a href="examples.html" style="font-weight: bold;">Interactive Examples</a>
+    </nav>
+</header>
+<main style="padding: 20px;">
+    <section>
+        <h2>Interactive Examples</h2>
+        
+        <div style="margin-bottom: 20px; padding: 10px; border-style: groove; border-width: 2px;">
+            <h3>1. DOM & Events</h3>
+            <p>Counter: <span id="counter-value" style="font-weight: bold; color: green;">0</span></p>
+            <button id="btn-increment">Increment Counter</button>
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 10px; border-style: groove; border-width: 2px;">
+            <h3>2. Network (Fetch)</h3>
+            <button id="btn-fetch">Fetch Random Fact</button>
+            <p id="fetch-result" style="color: blue;">Click to fetch a random fact...</p>
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 10px; border-style: groove; border-width: 2px;">
+            <h3>3. Storage (Local Storage)</h3>
+            <input id="input-name" placeholder="Enter your name" />
+            <button id="btn-save-name">Save Name</button>
+            <p id="storage-result" style="font-weight: bold; color: purple;"></p>
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 10px; border-style: groove; border-width: 2px;">
+            <h3>4. Navigator</h3>
+            <button id="btn-navigator">Show Navigator Info</button>
+            <p id="navigator-result"></p>
+        </div>
+    </section>
+</main>
+<script type="text/python">
+    from pyweb_api import fetch, localStorage, navigator
+    from pyweb import Window, Document
+    
+    # 1. DOM Counter
+    counter_value = Document.get_element_by_id("counter-value")
+    btn_increment = Document.get_element_by_id("btn-increment")
+    
+    # Need a global reference because inner variables in exec lose scope easily if not careful
+    global current_count
+    current_count = 0
+    
+    def increment_counter(e):
+        global current_count
+        current_count += 1
+        counter_value.set_text(str(current_count))
+        
+    if btn_increment:
+        btn_increment.add_event_listener("click", increment_counter)
+
+    # 2. Network Fetch
+    btn_fetch = Document.get_element_by_id("btn-fetch")
+    fetch_result = Document.get_element_by_id("fetch-result")
+    
+    def do_fetch(e):
+        fetch_result.set_text("Loading...")
+        try:
+            resp = fetch("https://uselessfacts.jsph.pl/api/v2/facts/random")
+            data = resp.json()
+            if "text" in data:
+                fetch_result.set_text(data["text"])
+            else:
+                fetch_result.set_text("Failed to load fact data")
+        except Exception as ex:
+            fetch_result.set_text(f"Error: {ex}")
+            
+    if btn_fetch:
+        btn_fetch.add_event_listener("click", do_fetch)
+
+    # 3. Local Storage
+    btn_save_name = Document.get_element_by_id("btn-save-name")
+    input_name = Document.get_element_by_id("input-name")
+    storage_result = Document.get_element_by_id("storage-result")
+    
+    saved_name = localStorage.get_item("username")
+    if saved_name and storage_result:
+        storage_result.set_text(f"Welcome back, {saved_name}!")
+        
+    def save_name(e):
+        # input value might not be natively supported yet in PyWeb Entry widget implementation
+        # But we will try to use input_name.attrs.get("value") or a default
+        # For PyWeb currently HTMLInputElement doesn't expose text. We'll fallback to a generic hello for demo if it fails
+        name = "PyWeb User"
+        if input_name and input_name._tk_widget:
+            try:
+                name = input_name._tk_widget.get() or "PyWeb User"
+            except:
+                pass
+        
+        localStorage.set_item("username", name)
+        storage_result.set_text(f"Saved! Hello, {name}!")
+        
+    if btn_save_name:
+        btn_save_name.add_event_listener("click", save_name)
+
+    # 4. Navigator
+    btn_navigator = Document.get_element_by_id("btn-navigator")
+    navigator_result = Document.get_element_by_id("navigator-result")
+    
+    def show_navigator(e):
+        agent = getattr(navigator, "user_agent", "Unknown")
+        plat = getattr(navigator, "platform", "Unknown")
+        navigator_result.set_text(f"User Agent: {agent} | Platform: {plat}")
+        
+    if btn_navigator:
+        btn_navigator.add_event_listener("click", show_navigator)
+    
+</script>
+</body>
+</html>

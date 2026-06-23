@@ -19,8 +19,8 @@ class RenderArea:
         self._render_area_canvas.configure(yscrollcommand=self._vsb.set)
 
 
-        # self._vsb.pack(side="right", fill="y", pady=(10, 0))
-        # self._render_area_canvas.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=(10, 0))
+        self._vsb.pack(side="right", fill="y", pady=(10, 0))
+        self._render_area_canvas.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=(10, 0))
 
         self._render_area_canvas.create_window((0, 0), window=self.widget, anchor="nw")
 
