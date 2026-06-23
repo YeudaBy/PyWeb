@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt
 
 from pyweb_api.DOM import HTMLElement
 from pyweb_api.DOM.HTMLTextElement import HTMLTextElement
+from pyweb_client.layout.flow_layout import FlowLayout
 
 if TYPE_CHECKING:
     from pyweb_client.main import PyWebClient
@@ -77,10 +78,13 @@ def parse_style_to_qss(style: Dict[str, str]) -> str:
     return "; ".join(qss_parts) + ";"
 
 
-def add_to_parent_layout(parent_widget, child_widget):
+def add_to_parent_layout(parent_widget, child_widget, child_display="block"):
     layout = parent_widget.layout()
     if layout is None:
-        layout = QVBoxLayout(parent_widget)
+        if child_display in ["inline", "inline-block"]:
+            layout = FlowLayout(parent_widget)
+        else:
+            layout = QVBoxLayout(parent_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
     layout.addWidget(child_widget)
@@ -90,7 +94,8 @@ def render_element(parent_qt_widget: QWidget, element: 'HTMLElement', context: '
     if isinstance(element, str):
         lbl = QLabel(element, parent_qt_widget)
         lbl.setWordWrap(True)
-        add_to_parent_layout(parent_qt_widget, lbl)
+        lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        add_to_parent_layout(parent_qt_widget, lbl, "inline")
         return
 
     tag = element.tag
@@ -121,12 +126,13 @@ def render_element(parent_qt_widget: QWidget, element: 'HTMLElement', context: '
                 prefix = "• " if tag == "ul" else f"{idx + 1}. "
                 li_label = QLabel(prefix + li_text, widget)
                 li_label.setWordWrap(True)
+                li_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 li_styles = child._get_style_dict()
                 li_qss = parse_style_to_qss(li_styles)
                 li_label.setStyleSheet(li_qss)
                 layout.addWidget(li_label)
         
-        add_to_parent_layout(parent_qt_widget, widget)
+        add_to_parent_layout(parent_qt_widget, widget, "block")
         widget.setStyleSheet(qss)
         return
 
@@ -145,11 +151,25 @@ def render_element(parent_qt_widget: QWidget, element: 'HTMLElement', context: '
 
     if widget:
         element._qt_widget = widget
+        widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         widget.setStyleSheet(qss)
-        add_to_parent_layout(parent_qt_widget, widget)
+        
+        display = element.get_default_styles().get("display", "block")
+        if "display" in styles:
+            display = styles["display"]
+            
+        add_to_parent_layout(parent_qt_widget, widget, display)
 
         # Recursively render children
-        for child in element.children:
-            if isinstance(child, str) and isinstance(element, HTMLTextElement):
-                continue
-            render_element(widget, child, context)
+        if tag not in ["input", "textarea", "button"]:
+            for child in element.children:
+                if isinstance(child, str):
+                    if isinstance(widget, QLabel):
+                        continue
+                    lbl = QLabel(child, widget)
+                    lbl.setWordWrap(True)
+                    lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                    lbl.setStyleSheet(qss)
+                    add_to_parent_layout(widget, lbl, "inline")
+                else:
+                    render_element(widget, child, context)

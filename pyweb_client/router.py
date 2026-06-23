@@ -10,7 +10,7 @@ class SchemeResponse:
 
 class ISchemeHandler(ABC):
     @abstractmethod
-    async def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
         pass
 
 
@@ -18,7 +18,9 @@ class AppSchemeHandler(ISchemeHandler):
     def __init__(self, client):
         self.client = client
 
-    async def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
+        from pyweb_api.network import Request
+        url = url_or_request.url if isinstance(url_or_request, Request) else url_or_request
         if url == "app://home":
             from pyweb_api.DOM import HTMLDivElement, HTMLPElementHTML, HTMLButtonElement
             root_dom_element = HTMLDivElement()
@@ -52,7 +54,9 @@ class AppSchemeHandler(ISchemeHandler):
 
 
 class FileSchemeHandler(ISchemeHandler):
-    async def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
+        from pyweb_api.network import Request
+        url = url_or_request.url if isinstance(url_or_request, Request) else url_or_request
         file_path = url[len("file://"):]
         with open(file_path, 'r', encoding="utf-8") as f:
             content = f.read()
@@ -60,9 +64,9 @@ class FileSchemeHandler(ISchemeHandler):
 
 
 class HttpSchemeHandler(ISchemeHandler):
-    async def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
         from pyweb_client.network import fetch_text
-        content = await fetch_text(url)
+        content = await fetch_text(url_or_request)
         return SchemeResponse(content)
 
 
@@ -70,13 +74,25 @@ class RelativeSchemeHandler(ISchemeHandler):
     def __init__(self, client):
         self.client = client
 
-    async def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
+        from pyweb_api.network import Request
         from urllib.parse import urljoin
+        
+        if isinstance(url_or_request, Request):
+            url = url_or_request.url
+        else:
+            url = url_or_request
+
         current_url = self.client.window.location.href
         if not current_url:
             raise ValueError("No active page to resolve relative URL")
         full_url = urljoin(current_url, url)
-        return await self.client.router.resolve(full_url)
+        
+        if isinstance(url_or_request, Request):
+            url_or_request.url = full_url
+            return await self.client.router.resolve(url_or_request)
+        else:
+            return await self.client.router.resolve(full_url)
 
 
 class ProtocolRouter:
@@ -86,19 +102,23 @@ class ProtocolRouter:
     def register_handler(self, scheme: str, handler: ISchemeHandler):
         self._handlers[scheme] = handler
 
-    async def resolve(self, url: str) -> SchemeResponse:
+    async def resolve(self, url_or_request: Union[str, 'Request']) -> SchemeResponse:
+        from pyweb_api.network import Request
+        if isinstance(url_or_request, Request):
+            url = url_or_request.url
+        else:
+            url = url_or_request
+
         if "://" in url:
             scheme = url.split("://", 1)[0]
         elif url.startswith("/") or not url.startswith("http"):
-            # If it's a relative path/subpath
             scheme = "relative"
         else:
             scheme = "unknown"
 
         handler = self._handlers.get(scheme)
         if not handler:
-            # Check fallback to relative if scheme is not registered
             if "relative" in self._handlers:
-                return await self._handlers["relative"].handle(url)
+                return await self._handlers["relative"].handle(url_or_request)
             raise ValueError(f"No handler registered for scheme: {scheme}")
-        return await handler.handle(url)
+        return await handler.handle(url_or_request)

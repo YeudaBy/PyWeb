@@ -21,9 +21,22 @@ class PyHTMLParser(HTMLParser):
         else:
             el = element_cls(dict(attrs), self.current)
         self.current.append_child(el)
-        self.current = el
+        
+        void_elements = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"
+        }
+        if tag.lower() not in void_elements:
+            self.current = el
 
     def handle_endtag(self, tag):
+        void_elements = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"
+        }
+        if tag.lower() in void_elements:
+            return
+            
         if self.current.parent:
             self.current = self.current.parent
 

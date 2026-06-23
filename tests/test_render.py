@@ -115,6 +115,7 @@ class TestRenderElement(unittest.TestCase):
         self.assertEqual(layout.count(), 1)
         lbl = layout.itemAt(0).widget()
         self.assertEqual(lbl.text(), "Hello World")
+        self.assertTrue(lbl.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse)
     
     def test_render_div_element(self):
         """Test rendering div elements"""
@@ -136,6 +137,7 @@ class TestRenderElement(unittest.TestCase):
         self.assertEqual(layout.count(), 1)
         p_widget = layout.itemAt(0).widget()
         self.assertEqual(p_widget.text(), "Test paragraph")
+        self.assertTrue(p_widget.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse)
     
     def test_render_header_elements(self):
         """Test rendering header elements with different font sizes"""
@@ -155,6 +157,7 @@ class TestRenderElement(unittest.TestCase):
             lbl = layout.itemAt(0).widget()
             self.assertEqual(lbl.text(), f"Header {tag}")
             self.assertIn(f"font-size: {expected_size}pt", lbl.styleSheet())
+            self.assertTrue(lbl.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse)
             temp_parent.deleteLater()
     
     def test_render_button_element(self):

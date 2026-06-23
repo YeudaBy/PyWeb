@@ -98,12 +98,18 @@ class PyWebClient:
         if self.console_output:
             self.console_output.append(f"<{level}>: {message}")
 
-    def _on_location_change(self, url: str) -> None:
+    def _on_location_change(self, url_or_request) -> None:
+        from pyweb_api.network import Request
+        if isinstance(url_or_request, Request):
+            url = url_or_request.url
+        else:
+            url = url_or_request
+
         self.window.console.log(f"Navigating to: {url}")
         
         # Add to history menu dynamically
         hist_action = QAction(url, self.root)
-        hist_action.triggered.connect(lambda: self.window.location.navigate(url))
+        hist_action.triggered.connect(lambda: self.window.location.navigate(url_or_request))
         self.history_menu.addAction(hist_action)
 
         self.render_area.clear()
@@ -125,7 +131,7 @@ class PyWebClient:
         import asyncio
         async def load_task():
             try:
-                response = await self.router.resolve(url)
+                response = await self.router.resolve(url_or_request)
                 self.signaler.content_signal.emit(response)
             except Exception as e:
                 self.signaler.error_signal.emit(url, e)
@@ -140,12 +146,14 @@ class PyWebClient:
             self.root.setCursor(Qt.CursorShape.ArrowCursor)  # Reset cursor
             self.render_area.clear()  # Clear loading message
             if isinstance(response.content, HTMLElement):
+                self.window.document.children = [response.content]
                 from pyweb_api.css_engine import resolve_styles
                 resolve_styles(response.content, [])
                 render_element(self.render_area.widget, response.content, self)
             else:
                 parser = PyHTMLParser()
                 parser.feed(response.content)
+                self.window.document.children = [parser.root]
                 from pyweb_api.css_engine import resolve_styles
                 resolve_styles(parser.root, parser.stylesheets)
                 render_element(self.render_area.widget, parser.root, self)

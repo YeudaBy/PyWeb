@@ -1,9 +1,10 @@
 from io import BytesIO
-from pyweb_api.network import fetch
+from typing import Union
+from pyweb_api.network import fetch, Request
 
 
-async def fetch_text(url: str) -> str:
-    res = await fetch(url)
+async def fetch_text(url_or_request: Union[str, Request]) -> str:
+    res = await fetch(url_or_request)
     if res.status >= 400:
         raise Exception(f"HTTP Error: {res.status}")
     return res.text()

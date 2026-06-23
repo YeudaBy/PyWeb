@@ -14,10 +14,16 @@ class HTMLTextElement(HTMLElement):
         }
 
     def render(self, parent_widget, context):
+        from PyQt6.QtWidgets import QWidget
         styles = self._get_style_dict()
-        lbl = QLabel(self.text, parent_widget)
-        lbl.setWordWrap(True)
-        return lbl
+        has_elements = any(not isinstance(c, str) for c in self.children)
+        if not has_elements:
+            lbl = QLabel(self.text, parent_widget)
+            lbl.setWordWrap(True)
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            return lbl
+        else:
+            return QWidget(parent_widget)
 
     @property
     def text(self):
@@ -131,9 +137,18 @@ class HTMLAElement(HTMLTextElement, HTMLInteractiveElement):
         }
 
     def render(self, parent_widget, context):
+        from PyQt6.QtWidgets import QWidget
         link_url = self.attrs.get('href', '#')
-        lbl = QLabel(self.text, parent_widget)
-        lbl.setWordWrap(True)
-        lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl.mousePressEvent = lambda e: context.window.location.navigate(link_url)
-        return lbl
+        has_elements = any(not isinstance(c, str) for c in self.children)
+        if not has_elements:
+            lbl = QLabel(self.text, parent_widget)
+            lbl.setWordWrap(True)
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            lbl.mousePressEvent = lambda e: context.window.location.navigate(link_url)
+            return lbl
+        else:
+            widget = QWidget(parent_widget)
+            widget.setCursor(Qt.CursorShape.PointingHandCursor)
+            widget.mousePressEvent = lambda e: context.window.location.navigate(link_url)
+            return widget

@@ -57,10 +57,11 @@ class HTMLElement:
                     return
 
     def render(self, parent_widget: QWidget, context) -> QWidget:
-        raise NotImplementedError("Subclasses should implement this")
+        from PyQt6.QtWidgets import QWidget
+        return QWidget(parent_widget)
 
     def get_default_styles(self):
-        raise NotImplementedError("Subclasses should implement this")
+        return {"display": "block"}
 
     def append_child(self, child: 'Element | str'):
         if isinstance(child, HTMLElement):

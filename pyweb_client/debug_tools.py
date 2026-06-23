@@ -89,7 +89,7 @@ class NetworkInspector(QWidget):
         for idx, log in enumerate(network_inspector_log):
             item = QTreeWidgetItem([log["method"], str(log["status"]), log["url"]])
             self.tree.addTopLevelItem(item)
-            self.request_map[item] = log
+            self.request_map[id(item)] = log
 
     def clear_log(self):
         network_inspector_log.clear()
@@ -103,7 +103,7 @@ class NetworkInspector(QWidget):
         if not selected:
             return
         
-        log = self.request_map.get(selected[0])
+        log = self.request_map.get(id(selected[0]))
         if not log:
             return
             
@@ -208,8 +208,8 @@ class DOMInspector(QWidget):
         self.tree.clear()
         self.node_map = {}
         document = self.client.window.document
-        if document:
-            self.populate_tree(None, document)
+        if document and document.children:
+            self.populate_tree(None, document.children[0])
 
     def populate_tree(self, parent_item, element):
         if isinstance(element, str):
@@ -221,7 +221,7 @@ class DOMInspector(QWidget):
                     parent_item.addChild(item)
                 else:
                     self.tree.addTopLevelItem(item)
-                self.node_map[item] = element
+                self.node_map[id(item)] = element
         else:
             tag_name = element.tag
             disp_text = f"<{tag_name}>"
@@ -234,7 +234,7 @@ class DOMInspector(QWidget):
                 parent_item.addChild(item)
             else:
                 self.tree.addTopLevelItem(item)
-            self.node_map[item] = element
+            self.node_map[id(item)] = element
             
             for child in element.children:
                 self.populate_tree(item, child)
@@ -244,7 +244,7 @@ class DOMInspector(QWidget):
         if not selected:
             return
             
-        node = self.node_map.get(selected[0])
+        node = self.node_map.get(id(selected[0]))
         self.attrs_text.clear()
         self.styles_text.clear()
         self.value_text.clear()
