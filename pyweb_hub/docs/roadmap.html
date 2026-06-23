@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PyWeb Docs - Roadmap & Security</title>
+</head>
+<body>
+<header style="background-color: #e2f0d9; padding: 20px; text-align: center; border-style: solid; border-width: 1px;">
+    <h1>PyWeb Documentation</h1>
+    <p>Roadmap & Security</p>
+    <nav style="margin: 10px;">
+        <a href="../index.html" style="margin-right: 15px; font-weight: bold;">Home</a>
+        <a href="index.html" style="margin-right: 15px; font-weight: bold;">Docs Home</a>
+        <a href="client.html" style="margin-right: 15px; font-weight: bold;">Client</a>
+        <a href="api.html" style="margin-right: 15px; font-weight: bold;">API</a>
+        <a href="ecosystem.html" style="margin-right: 15px; font-weight: bold;">Ecosystem</a>
+        <a href="roadmap.html" style="margin-right: 15px; font-weight: bold;">Roadmap</a>
+        <a href="../examples.html" style="font-weight: bold;">Examples</a>
+    </nav>
+</header>
+<main style="padding: 20px;">
+    <section>
+        <h2>Security Considerations</h2>
+        <p style="font-weight: bold; color: red;">WARNING: You should NOT use this program on your computer to browse untrusted sites.</p>
+        <p>PyWeb currently suffers from significant security limitations:</p>
+        <ul>
+            <li><strong>No Sandbox</strong>: Python does not have an actual sandbox for executing untrusted code. Scripts running on a webpage have access to your local Python environment and potentially your filesystem!</li>
+            <li><strong>XSS</strong>: Standard Cross-Site Scripting vulnerabilities exist due to naive rendering of strings in the DOM.</li>
+        </ul>
+        <p>These will be tackled eventually, but are currently major blockers for real-world usage.</p>
+
+        <h2>Development Roadmap</h2>
+        <p>We are building the browser one component at a time. The current focus is on a working POC that can render interactive HTML pages.</p>
+        <ul>
+            <li><strong>Phase 1 (Current)</strong>: POC rendering, inline Python scripts, basic network/DOM APIs.</li>
+            <li><strong>Phase 2 (Next)</strong>: Full CSS parser, complex layout engine, WebSockets.</li>
+            <li><strong>Phase 3 (Future)</strong>: JavaScript transpiler/translator, Security sandbox integration, pycakge, PyWebAct.</li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

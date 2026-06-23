@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PyWeb Docs - Client Architecture</title>
+</head>
+<body>
+<header style="background-color: #e2f0d9; padding: 20px; text-align: center; border-style: solid; border-width: 1px;">
+    <h1>PyWeb Documentation</h1>
+    <p>Client Architecture</p>
+    <nav style="margin: 10px;">
+        <a href="../index.html" style="margin-right: 15px; font-weight: bold;">Home</a>
+        <a href="index.html" style="margin-right: 15px; font-weight: bold;">Docs Home</a>
+        <a href="client.html" style="margin-right: 15px; font-weight: bold;">Client</a>
+        <a href="api.html" style="margin-right: 15px; font-weight: bold;">API</a>
+        <a href="ecosystem.html" style="margin-right: 15px; font-weight: bold;">Ecosystem</a>
+        <a href="roadmap.html" style="margin-right: 15px; font-weight: bold;">Roadmap</a>
+        <a href="../examples.html" style="font-weight: bold;">Examples</a>
+    </nav>
+</header>
+<main style="padding: 20px;">
+    <section>
+        <h2>The PyWeb Client</h2>
+        <p>The PyWeb client is a custom-built browser designed to render HTML and execute embedded Python.</p>
+        
+        <h3>Current Implementation</h3>
+        <ul>
+            <li><strong>Browser UI</strong>: Built using Tkinter, providing basic navigation controls (Back, Forward, Reload, Address Bar).</li>
+            <li><strong>Render Engine</strong>: Parses HTML and translates it into Tkinter widgets. Handles block and inline elements (`div`, `p`, `button`, `input`).</li>
+            <li><strong>Script Engine</strong>: Extracts <code>&lt;script type="text/python"&gt;</code> tags and executes them in a sandboxed Python environment with injected <code>Window</code> and <code>Document</code> variables.</li>
+            <li><strong>Router</strong>: Supports multiple schemes including <code>app://</code>, <code>file://</code>, <code>http://</code>, and <code>relative://</code>.</li>
+        </ul>
+
+        <h3 style="color: #c00000;">Future Implementations</h3>
+        <ul>
+            <li><strong>Advanced Network Model</strong>: Full socket handling, TLS/SSL communications, native DNS resolution, and binary resource fetching.</li>
+            <li><strong>CSS Rendering</strong>: The render engine currently supports inline style attributes mapped to Tkinter properties. A full CSS parser and cascading engine is planned.</li>
+            <li><strong>Media Rendering</strong>: Native support for `<video>`, `<audio>`, and advanced `<canvas>` elements.</li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

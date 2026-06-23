@@ -108,6 +108,16 @@ class PyWebClient:
 
         self.render_area.clear()
         
+        # Display Loading Feedback inside viewport
+        loading_lbl = QLabel("Loading page... Please wait...", self.render_area.widget)
+        loading_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_lbl.setStyleSheet("QLabel { font-size: 14pt; color: #6b7280; font-weight: bold; padding: 40px; }")
+        if self.render_area.widget.layout():
+            self.render_area.widget.layout().addWidget(loading_lbl)
+            
+        # Set busy cursor
+        self.root.setCursor(Qt.CursorShape.WaitCursor)
+        
         if self.address_input:
             self.address_input.setText(url)
 
@@ -127,6 +137,8 @@ class PyWebClient:
         from pyweb_client.html_parser import PyHTMLParser
         
         try:
+            self.root.setCursor(Qt.CursorShape.ArrowCursor)  # Reset cursor
+            self.render_area.clear()  # Clear loading message
             if isinstance(response.content, HTMLElement):
                 from pyweb_api.css_engine import resolve_styles
                 resolve_styles(response.content, [])
@@ -143,6 +155,8 @@ class PyWebClient:
 
     def _render_error(self, url: str, exception: Exception) -> None:
         self.window.console.error(f"Navigation error for {url}: {exception}")
+        self.root.setCursor(Qt.CursorShape.ArrowCursor)  # Reset cursor
+        self.render_area.clear()  # Clear loading message
         from pyweb_api.DOM import HTMLDivElement, HTMLPElementHTML
         root_dom_element = HTMLDivElement()
         p = HTMLPElementHTML()

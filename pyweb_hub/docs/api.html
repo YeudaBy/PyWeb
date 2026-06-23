@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PyWeb Docs - API Reference</title>
+</head>
+<body>
+<header style="background-color: #e2f0d9; padding: 20px; text-align: center; border-style: solid; border-width: 1px;">
+    <h1>PyWeb Documentation</h1>
+    <p>API Reference</p>
+    <nav style="margin: 10px;">
+        <a href="../index.html" style="margin-right: 15px; font-weight: bold;">Home</a>
+        <a href="index.html" style="margin-right: 15px; font-weight: bold;">Docs Home</a>
+        <a href="client.html" style="margin-right: 15px; font-weight: bold;">Client</a>
+        <a href="api.html" style="margin-right: 15px; font-weight: bold;">API</a>
+        <a href="ecosystem.html" style="margin-right: 15px; font-weight: bold;">Ecosystem</a>
+        <a href="roadmap.html" style="margin-right: 15px; font-weight: bold;">Roadmap</a>
+        <a href="../examples.html" style="font-weight: bold;">Examples</a>
+    </nav>
+</header>
+<main style="padding: 20px;">
+    <section>
+        <h2>The PyWeb API</h2>
+        <p>These are the modules exposed to developers writing PyWeb applications.</p>
+        
+        <h3>Current APIs</h3>
+        <ul>
+            <li><strong>Document & DOM</strong>: <code>Document.get_element_by_id</code>, <code>element.add_event_listener</code>, <code>element.set_text</code>. Elements follow an OOP hierarchy.</li>
+            <li><strong>Network (fetch)</strong>: <code>from pyweb_api import fetch</code> - Make HTTP requests and get JSON or text responses.</li>
+            <li><strong>LocalStorage</strong>: <code>from pyweb_api import localStorage</code> - Use <code>get_item</code> and <code>set_item</code> to persist data.</li>
+            <li><strong>History</strong>: <code>from pyweb_api import history</code> - Manage navigation state using <code>push_state</code>.</li>
+            <li><strong>Navigator</strong>: <code>from pyweb_api import navigator</code> - Read client environment details.</li>
+            <li><strong>Console</strong>: <code>Window.console.log</code>, <code>warn</code>, <code>error</code> - Log outputs to the browser's developer console.</li>
+        </ul>
+
+        <h3 style="color: #c00000;">Future APIs</h3>
+        <ul>
+            <li><strong>Cookies</strong>: Full integration with HTTP state management.</li>
+            <li><strong>WebSocket</strong>: Bi-directional communication API for real-time apps.</li>
+            <li><strong>Media API</strong>: Controlling media playback programmatically.</li>
+            <li><strong>Worker API</strong>: Background Python threading for offloading heavy tasks from the main UI thread.</li>
+            <li><strong>Advanced Request/Response</strong>: Exposing full HTTP Header manipulation to developers.</li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>
