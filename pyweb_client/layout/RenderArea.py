@@ -40,13 +40,30 @@ class RenderArea:
         self._render_area_canvas.configure(scrollregion=self._render_area_canvas.bbox("all"))
 
     def _on_mouse_wheel(self, event):
-        self.cl.window.console.log(f"Mouse Wheel Event: {event}")
+        # Resolve the actual widget under the mouse pointer
+        try:
+            x = self.root.winfo_pointerx()
+            y = self.root.winfo_pointery()
+            widget = self.root.winfo_containing(x, y)
+        except:
+            widget = event.widget
+
+        curr = widget
+        is_in_canvas = False
+        while curr:
+            if curr == self._render_area_canvas:
+                is_in_canvas = True
+                break
+            curr = curr.master if hasattr(curr, 'master') else None
+
+        if not is_in_canvas:
+            return
 
         scroll_val = 0
         if event.num == 5 or (hasattr(event, 'delta') and event.delta < 0):  # Scroll Down
-            scroll_val = 1
+            scroll_val = 2
         elif event.num == 4 or (hasattr(event, 'delta') and event.delta > 0):  # Scroll Up
-            scroll_val = -1
+            scroll_val = -2
 
         if scroll_val != 0:
             self._render_area_canvas.yview_scroll(scroll_val, "units")

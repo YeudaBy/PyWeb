@@ -25,7 +25,9 @@ def parse_style_to_tk(style: Dict[str, str]) -> Dict[str, Dict[str, any]]:
             if isinstance(val, int):
                 font_size = val
             elif isinstance(val, str):
-                font_size = int(val.replace("px", "").strip())
+                for unit in ["px", "pt", "em", "rem"]:
+                    val = val.replace(unit, "")
+                font_size = int(float(val.strip()))
         except:
             pass
 
@@ -165,7 +167,7 @@ def render_element(parent_tk_widget: tk.Widget, element: 'HTMLElement', context:
     tag = element.tag
     widget = None
 
-    if tag == "script":
+    if tag in ["script", "style"]:
         context.window.console.log("Unknown tag: ", tag)
         return
 

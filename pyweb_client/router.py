@@ -10,7 +10,7 @@ class SchemeResponse:
 
 class ISchemeHandler(ABC):
     @abstractmethod
-    def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url: str) -> SchemeResponse:
         pass
 
 
@@ -18,7 +18,7 @@ class AppSchemeHandler(ISchemeHandler):
     def __init__(self, client):
         self.client = client
 
-    def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url: str) -> SchemeResponse:
         if url == "app://home":
             from pyweb_api.DOM import HTMLDivElement, HTMLPElementHTML, HTMLButtonElement
             root_dom_element = HTMLDivElement()
@@ -52,7 +52,7 @@ class AppSchemeHandler(ISchemeHandler):
 
 
 class FileSchemeHandler(ISchemeHandler):
-    def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url: str) -> SchemeResponse:
         file_path = url[len("file://"):]
         with open(file_path, 'r', encoding="utf-8") as f:
             content = f.read()
@@ -60,9 +60,9 @@ class FileSchemeHandler(ISchemeHandler):
 
 
 class HttpSchemeHandler(ISchemeHandler):
-    def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url: str) -> SchemeResponse:
         from pyweb_client.network import fetch_text
-        content = fetch_text(url)
+        content = await fetch_text(url)
         return SchemeResponse(content)
 
 
@@ -70,13 +70,13 @@ class RelativeSchemeHandler(ISchemeHandler):
     def __init__(self, client):
         self.client = client
 
-    def handle(self, url: str) -> SchemeResponse:
+    async def handle(self, url: str) -> SchemeResponse:
         from urllib.parse import urljoin
         current_url = self.client.window.location.href
         if not current_url:
             raise ValueError("No active page to resolve relative URL")
         full_url = urljoin(current_url, url)
-        return self.client.router.resolve(full_url)
+        return await self.client.router.resolve(full_url)
 
 
 class ProtocolRouter:
@@ -86,7 +86,7 @@ class ProtocolRouter:
     def register_handler(self, scheme: str, handler: ISchemeHandler):
         self._handlers[scheme] = handler
 
-    def resolve(self, url: str) -> SchemeResponse:
+    async def resolve(self, url: str) -> SchemeResponse:
         if "://" in url:
             scheme = url.split("://", 1)[0]
         elif url.startswith("/") or not url.startswith("http"):
@@ -99,6 +99,6 @@ class ProtocolRouter:
         if not handler:
             # Check fallback to relative if scheme is not registered
             if "relative" in self._handlers:
-                return self._handlers["relative"].handle(url)
+                return await self._handlers["relative"].handle(url)
             raise ValueError(f"No handler registered for scheme: {scheme}")
-        return handler.handle(url)
+        return await handler.handle(url)

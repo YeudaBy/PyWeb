@@ -10,6 +10,7 @@ class PyHTMLParser(HTMLParser):
         super().__init__()
         self.root = HTMLElement("root")
         self.current = self.root
+        self.stylesheets = []
 
     def handle_starttag(self, tag, attrs):
         from pyweb_api.DOM import HTMLElement
@@ -27,5 +28,9 @@ class PyHTMLParser(HTMLParser):
             self.current = self.current.parent
 
     def handle_data(self, data):
+        if self.current.tag == "style":
+            from pyweb_api.css_engine import parse_stylesheet
+            self.stylesheets.append(parse_stylesheet(data))
+            
         if data.strip():
             self.current.append_child(data.strip())

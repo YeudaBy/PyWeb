@@ -17,7 +17,18 @@ class HTMLTextElement(HTMLElement):
         font_family = styles.get("font-family", "Arial")
         if font_family == "Ariel":
             font_family = "Arial"
-        font_size = styles.get("font-size", 12)
+        font_size = 12
+        if "font-size" in styles:
+            try:
+                val = styles["font-size"]
+                if isinstance(val, int):
+                    font_size = val
+                elif isinstance(val, str):
+                    for unit in ["px", "pt", "em", "rem"]:
+                        val = val.replace(unit, "")
+                    font_size = int(float(val.strip()))
+            except:
+                pass
         weight = "bold" if styles.get("font-weight") == "bold" or styles.get("font-width") == 600 else "normal"
         
         if self.tag in ["h1", "h2", "h3", "h4", "h5", "h6"]:

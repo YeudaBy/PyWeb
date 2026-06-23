@@ -85,7 +85,9 @@ def parse_url(url: str) -> Tuple[str, str, int, str]:
     return scheme, host, port, path
 
 
-def fetch(request_or_url: Union[str, Request]) -> Response:
+import asyncio
+
+async def fetch(request_or_url: Union[str, Request]) -> Response:
     if isinstance(request_or_url, str):
         req = Request(request_or_url)
     else:
@@ -96,20 +98,19 @@ def fetch(request_or_url: Union[str, Request]) -> Response:
 
     scheme, host, port, path = parse_url(req.url)
 
-    # 1. DNS Resolution & TCP socket connection
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(10.0)
-
     if scheme == "https":
-        # 2. Wrap socket with TLS/SSL
         context = ssl.create_default_context()
-        conn = context.wrap_socket(sock, server_hostname=host)
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port, ssl=context, server_hostname=host),
+            timeout=10.0
+        )
     else:
-        conn = sock
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port),
+            timeout=10.0
+        )
 
     try:
-        conn.connect((host, port))
-
         # Build HTTP Request
         req_lines = [f"{req.method} {path} HTTP/1.1", f"Host: {host}"]
         req_lines.append("User-Agent: PyWebBrowser/1.0")
@@ -129,12 +130,13 @@ def fetch(request_or_url: Union[str, Request]) -> Response:
             req_data += req.body
 
         # Send request
-        conn.sendall(req_data.encode("utf-8"))
+        writer.write(req_data.encode("utf-8"))
+        await writer.drain()
 
         # Receive raw bytes response
         response_bytes = bytearray()
         while True:
-            chunk = conn.recv(4096)
+            chunk = await reader.read(4096)
             if not chunk:
                 break
             response_bytes.extend(chunk)
@@ -185,4 +187,8 @@ def fetch(request_or_url: Union[str, Request]) -> Response:
         return response
 
     finally:
-        conn.close()
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except:
+            pass

@@ -13,8 +13,22 @@ class PyWebClient:
     def __init__(self, root: tk.Tk):
         self.root: tk.Tk = root
 
+        # Set application logo/window icon
+        import os
+        from PIL import Image, ImageTk
+        try:
+            logo_path = os.path.join(os.path.dirname(__file__), "..", "assests", "logo.png")
+            if os.path.exists(logo_path):
+                img = Image.open(logo_path)
+                photo = ImageTk.PhotoImage(img)
+                self.root.iconphoto(True, photo)
+                self.root.logo_image = photo  # Keep a reference to prevent garbage collection
+        except Exception as e:
+            print("Failed to load app logo:", e)
+
         self.render_area: RenderArea = RenderArea(self.root, self)
         self.address_input: Optional[tk.Entry] = None
+        self.console_container: Optional[tk.Frame] = None
         self.console_output: Optional[scrolledtext.ScrolledText] = None
 
         self.window: Window = Window(self)
@@ -33,6 +47,14 @@ class PyWebClient:
 
         self.render_layout()
         self.build_menu()
+
+        # Initialize background asyncio event loop
+        import asyncio
+        self.loop = asyncio.new_event_loop()
+        def start_loop(loop):
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+        threading.Thread(target=start_loop, args=(self.loop,), daemon=True).start()
 
         # Start interactive REPL console asynchronously in background
         from pyweb_client.script_engine import PyWebInterpreter
@@ -66,14 +88,15 @@ class PyWebClient:
             self.address_input.insert(0, url)
 
         # Asynchronously resolve url via scheme handlers
-        def load_thread() -> None:
+        import asyncio
+        async def load_task():
             try:
-                response = self.router.resolve(url)
+                response = await self.router.resolve(url)
                 self.root.after(0, lambda: self._render_content(response))
             except Exception as e:
                 self.root.after(0, lambda: self._render_error(url, e))
 
-        threading.Thread(target=load_thread, daemon=True).start()
+        asyncio.run_coroutine_threadsafe(load_task(), self.loop)
 
     def _render_content(self, response) -> None:
         from pyweb_api.DOM import HTMLElement
@@ -81,10 +104,14 @@ class PyWebClient:
         
         try:
             if isinstance(response.content, HTMLElement):
+                from pyweb_api.css_engine import resolve_styles
+                resolve_styles(response.content, [])
                 render_element(self.render_area.widget, response.content, self)
             else:
                 parser = PyHTMLParser()
                 parser.feed(response.content)
+                from pyweb_api.css_engine import resolve_styles
+                resolve_styles(parser.root, parser.stylesheets)
                 render_element(self.render_area.widget, parser.root, self)
             self.window.console.log("Page rendered successfully.")
         except Exception as e:
@@ -104,39 +131,110 @@ class PyWebClient:
         self.render_area.clear()
         self.window.location.reload()
 
-    def render_layout(self) -> None:
-        self.root.title("PyWeb Client v0")
-        self.root.configure(bg="#f0f0f0")
+    def create_premium_button(self, parent, text, command, bg_color="#4f46e5", fg_color="white", hover_bg="#4338ca"):
+        btn = tk.Label(
+            parent,
+            text=text,
+            bg=bg_color,
+            fg=fg_color,
+            font=("Helvetica", 10, "bold"),
+            padx=12,
+            pady=6,
+            cursor="hand2",
+            relief="flat",
+            bd=0
+        )
+        btn.bind("<Button-1>", lambda e: command())
+        btn.bind("<Enter>", lambda e: btn.configure(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.configure(bg=bg_color))
+        return btn
 
-        # Top bar frame
-        top_bar = tk.Frame(self.root, pady=5, relief="groove")
+    def toggle_console(self) -> None:
+        if self.console_container.winfo_ismapped():
+            self.console_container.pack_forget()
+        else:
+            self.console_container.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
+
+    def render_layout(self) -> None:
+        self.root.title("PyWeb Client")
+        self.root.configure(bg="#f3f4f6")
+
+        # Top bar frame (modern light background with bottom border highlight)
+        top_bar = tk.Frame(self.root, bg="#ffffff", pady=8, bd=1, relief="flat")
         top_bar.pack(fill="x", padx=10, pady=(10, 0))
 
-        back_btn = tk.Button(top_bar, text="<", command=self.window.location.back, bg="#4285F4", relief="raised")
-        back_btn.pack(side="left", pady=5, padx=(0, 5))
+        # Premium styled navigation buttons
+        back_btn = self.create_premium_button(top_bar, "←", self.window.location.back, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
+        back_btn.pack(side="left", padx=(5, 4), pady=2)
 
-        reload_btn = tk.Button(top_bar, text="reload", command=self.reload, bg="#4285F4", relief="raised")
-        reload_btn.pack(side="left", pady=5, padx=(0, 10))
+        reload_btn = self.create_premium_button(top_bar, "↻", self.reload, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
+        reload_btn.pack(side="left", padx=(0, 4), pady=2)
 
-        forward_btn = tk.Button(top_bar, text=">", command=self.window.location.forward, bg="#4285F4", relief="raised")
-        forward_btn.pack(side="left", pady=5, padx=(0, 15))
+        forward_btn = self.create_premium_button(top_bar, "→", self.window.location.forward, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
+        forward_btn.pack(side="left", padx=(0, 12), pady=2)
 
-        self.address_input = tk.Entry(top_bar, width=60, relief="sunken", bd=2, bg="white")
+        # Address bar with high contrast border and large legibility
+        self.address_input = tk.Entry(
+            top_bar,
+            font=("Helvetica", 11),
+            bg="#f9fafb",
+            fg="#1f2937",
+            relief="solid",
+            bd=1,
+            insertbackground="#1f2937",
+            highlightthickness=1,
+            highlightbackground="#e5e7eb",
+            highlightcolor="#3b82f6"
+        )
         self.address_input.insert(0, "app://home")
-        self.address_input.pack(side="left", pady=5, fill="y")
+        self.address_input.pack(side="left", fill="x", expand=True, padx=(0, 8), pady=2)
+        self.address_input.bind("<Return>", lambda e: self.window.location.navigate(self.address_input.get()))
 
-        go_btn = tk.Button(top_bar, text="Go", command=lambda: self.window.location.navigate(self.address_input.get()),
-                           bg="#4285F4",
-                           relief="raised")
-        go_btn.pack(side="left", pady=5)
+        go_btn = self.create_premium_button(top_bar, "Go", lambda: self.window.location.navigate(self.address_input.get()), bg_color="#10b981", hover_bg="#059669")
+        go_btn.pack(side="left", padx=(0, 8), pady=2)
 
-        file_btn = tk.Button(top_bar, text="Open HTML", command=self.on_open_file, bg="#34A853", relief="raised")
-        file_btn.pack(side="left", padx=(10, 0), pady=5)
+        file_btn = self.create_premium_button(top_bar, "Open HTML", self.on_open_file, bg_color="#3b82f6", hover_bg="#2563eb")
+        file_btn.pack(side="left", padx=(0, 8), pady=2)
 
-        # Console area - We pack it FIRST with side=bottom
-        self.console_output = scrolledtext.ScrolledText(self.root, height=8, bg="black", fg="lime",
-                                                        insertbackground="black")
-        self.console_output.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
+        console_btn = self.create_premium_button(top_bar, "Console", self.toggle_console, bg_color="#6b7280", hover_bg="#4b5563")
+        console_btn.pack(side="left", padx=(0, 5), pady=2)
+
+        # Console container frame
+        self.console_container = tk.Frame(self.root, bg="#1f2937")
+        
+        # Console header bar
+        console_header = tk.Frame(self.console_container, bg="#111827", height=24)
+        console_header.pack(fill="x", side="top")
+        
+        console_title = tk.Label(console_header, text="Developer Console", bg="#111827", fg="#9ca3af", font=("Helvetica", 9, "bold"))
+        console_title.pack(side="left", padx=10, pady=2)
+        
+        clear_btn = tk.Label(console_header, text="Clear", bg="#374151", fg="white", font=("Helvetica", 8, "bold"), cursor="hand2", padx=6)
+        clear_btn.bind("<Button-1>", lambda e: self.console_output.delete("1.0", tk.END))
+        clear_btn.bind("<Enter>", lambda e: clear_btn.configure(bg="#4b5563"))
+        clear_btn.bind("<Leave>", lambda e: clear_btn.configure(bg="#374151"))
+        clear_btn.pack(side="right", padx=5, pady=2)
+        
+        close_btn = tk.Label(console_header, text="✕", bg="#111827", fg="#9ca3af", font=("Helvetica", 9, "bold"), cursor="hand2", padx=6)
+        close_btn.bind("<Button-1>", lambda e: self.toggle_console())
+        close_btn.bind("<Enter>", lambda e: close_btn.configure(fg="white"))
+        close_btn.bind("<Leave>", lambda e: close_btn.configure(fg="#9ca3af"))
+        close_btn.pack(side="right", padx=5, pady=2)
+        
+        self.console_output = scrolledtext.ScrolledText(
+            self.console_container, 
+            height=7, 
+            bg="#1f2937", 
+            fg="#10b981", 
+            insertbackground="white", 
+            font=("Courier", 10),
+            relief="flat",
+            bd=0
+        )
+        self.console_output.pack(fill="both", expand=True)
+        
+        # Start with console shown
+        self.console_container.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
 
         self.render_area.render_init()
         # Log to console after it's created
@@ -145,6 +243,11 @@ class PyWebClient:
         self.root.bind("<F12>", lambda e: self.open_network_inspector())
         self.root.bind("<Control-Shift-Key-I>", lambda e: self.open_dom_inspector())
         # self.root.bind("<Control-Shift-key-i>", lambda e: self.open_dom_inspector())
+        self.root.bind("<Control-BackSpace>", lambda e: self.toggle_console())
+        # self.root.bind("<Control-quote>", lambda e: self.toggle_console())
+        self.root.bind("<Control-dead_grave>", lambda e: self.toggle_console())
+        self.root.bind("<Control-asciitilde>", lambda e: self.toggle_console())
+        self.root.bind("<Control-grave>", lambda e: self.toggle_console())
 
     def open_network_inspector(self) -> None:
         from pyweb_client.debug_tools import NetworkInspector

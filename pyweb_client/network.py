@@ -2,15 +2,15 @@ from io import BytesIO
 from pyweb_api.network import fetch
 
 
-def fetch_text(url: str) -> str:
-    res = fetch(url)
+async def fetch_text(url: str) -> str:
+    res = await fetch(url)
     if res.status >= 400:
         raise Exception(f"HTTP Error: {res.status}")
     return res.text()
 
 
-def fetch_binary(url: str) -> BytesIO:
-    res = fetch(url)
+async def fetch_binary(url: str) -> BytesIO:
+    res = await fetch(url)
     if res.status >= 400:
         raise Exception(f"HTTP Error: {res.status}")
     content = res._content

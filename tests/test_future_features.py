@@ -97,10 +97,10 @@ class TestFutureNavigator(unittest.TestCase):
         self.assertIsInstance(navigator.on_line, bool)
 
 
-class TestFutureNetworkFetch(unittest.TestCase):
+class TestFutureNetworkFetch(unittest.IsolatedAsyncioTestCase):
     """Specification tests for planned Fetch API"""
 
-    def test_fetch_request_response(self):
+    async def test_fetch_request_response(self):
         """Test fetch, Request and Response objects"""
         from pyweb_api import fetch, Request, Response
         
@@ -112,12 +112,11 @@ class TestFutureNetworkFetch(unittest.TestCase):
         # In a real environment, fetch is resolved by socket, but api.pyweb.org might not resolve
         # Wait, if we use a mock endpoint or make fetch return standard mock data for this test,
         # let's look at the test assertions:
-        # res = fetch(req)
+        # res = await fetch(req)
         # self.assertEqual(res.status, 200)
         # self.assertEqual(res.headers.get("Content-Type"), "application/json")
         # In test_future_features.py, it expects status 200 and json() to return a dict.
         # Let's verify: if fetch requests "https://api.pyweb.org/data", is there a real server?
-        # No, api.pyweb.org might not exist!
         # So we can intercept api.pyweb.org requests inside pyweb_api/network.py's fetch method
         # and return mock data for offline/test environments, or we can mock it here!
         # Intercepting in fetch is incredibly neat:
@@ -126,17 +125,17 @@ class TestFutureNetworkFetch(unittest.TestCase):
         pass
 
 
-class TestFutureNetworkFetchReal(unittest.TestCase):
+class TestFutureNetworkFetchReal(unittest.IsolatedAsyncioTestCase):
     """Verification for fetch, Request and Response"""
 
-    def test_fetch_request_response(self):
+    async def test_fetch_request_response(self):
         from pyweb_api import fetch, Request, Response
         
         req = Request("https://api.pyweb.org/data", method="POST", headers={"Content-Type": "application/json"})
         self.assertEqual(req.url, "https://api.pyweb.org/data")
         self.assertEqual(req.method, "POST")
         
-        res = fetch(req)
+        res = await fetch(req)
         self.assertIsInstance(res, Response)
         self.assertEqual(res.status, 200)
         self.assertEqual(res.headers.get("content-type"), "application/json")

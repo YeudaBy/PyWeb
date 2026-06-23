@@ -16,6 +16,7 @@ class HTMLElement:
         self.children: List[HTMLElement | str] = []
         self.parent = parent
         self.event_handlers = {}
+        self.resolved_style: Dict[str, str] = {}
 
     @property
     def listeners(self):
@@ -75,6 +76,9 @@ class HTMLElement:
             self._tk_widget.config(text=new_text)
 
     def _get_style_dict(self) -> Dict[str, str]:
+        if hasattr(self, "resolved_style") and self.resolved_style:
+            return self.resolved_style
+
         styles = {}
         
         try:
