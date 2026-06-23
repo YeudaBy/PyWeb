@@ -1,4 +1,5 @@
-import tkinter as tk
+from PyQt6.QtWidgets import QScrollArea, QWidget, QVBoxLayout
+from PyQt6.QtCore import Qt
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pyweb_client.main import PyWebClient
@@ -8,62 +9,31 @@ class RenderArea:
     def __init__(self, root, cl: 'PyWebClient'):
         self.root = root
         self.cl = cl
-        self._render_area_canvas = None
+        self.scroll_area = None
         self.widget = None
-        self._vsb = None
 
     def render_init(self):
-        self._render_area_canvas = tk.Canvas(self.root, borderwidth=0)
-        self.widget = tk.Frame(self._render_area_canvas)
-        self._vsb = tk.Scrollbar(self.root, orient="vertical", command=self._render_area_canvas.yview)
-        self._render_area_canvas.configure(yscrollcommand=self._vsb.set)
+        self.scroll_area = QScrollArea(self.root)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #f3f4f6; }")
 
+        self.widget = QWidget()
+        self.widget.setObjectName("RenderAreaWidget")
+        self.widget.setStyleSheet("#RenderAreaWidget { background-color: white; border-radius: 8px; }")
+        
+        layout = QVBoxLayout(self.widget)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self._vsb.pack(side="right", fill="y", pady=(10, 0))
-        self._render_area_canvas.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=(10, 0))
-
-        self._render_area_canvas.create_window((0, 0), window=self.widget, anchor="nw")
-
-        self.widget.bind("<Configure>", self._on_render_area_conf)
-
-        # Bind mouse wheel scrolling
-        self.root.bind_all("<MouseWheel>", self._on_mouse_wheel)  # For Windows and MacOS
-        self.root.bind_all("<Button-4>", self._on_mouse_wheel)  # For Linux (scroll up)
-        self.root.bind_all("<Button-5>", self._on_mouse_wheel)  # For Linux (scroll down)
-
+        self.scroll_area.setWidget(self.widget)
 
     def clear(self):
-        for widget in self.widget.winfo_children():
-            widget.destroy()
-
-    def _on_render_area_conf(self, event):
-        self._render_area_canvas.configure(scrollregion=self._render_area_canvas.bbox("all"))
-
-    def _on_mouse_wheel(self, event):
-        # Resolve the actual widget under the mouse pointer
-        try:
-            x = self.root.winfo_pointerx()
-            y = self.root.winfo_pointery()
-            widget = self.root.winfo_containing(x, y)
-        except:
-            widget = event.widget
-
-        curr = widget
-        is_in_canvas = False
-        while curr:
-            if curr == self._render_area_canvas:
-                is_in_canvas = True
-                break
-            curr = curr.master if hasattr(curr, 'master') else None
-
-        if not is_in_canvas:
-            return
-
-        scroll_val = 0
-        if event.num == 5 or (hasattr(event, 'delta') and event.delta < 0):  # Scroll Down
-            scroll_val = 2
-        elif event.num == 4 or (hasattr(event, 'delta') and event.delta > 0):  # Scroll Up
-            scroll_val = -2
-
-        if scroll_val != 0:
-            self._render_area_canvas.yview_scroll(scroll_val, "units")
+        if self.widget and self.widget.layout():
+            layout = self.widget.layout()
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()

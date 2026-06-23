@@ -1,4 +1,4 @@
-from tkinter import Widget
+from PyQt6.QtWidgets import QWidget
 from typing import TYPE_CHECKING
 
 from pyweb_api.DOM.HTMLElement import HTMLElement
@@ -19,9 +19,9 @@ class HTMLTitleElement(HTMLMetaElement):
     def __init__(self, attrs=None, children=None):
         super().__init__("title", attrs, children)
 
-    def render(self, parent_widget: Widget, context):
+    def render(self, parent_widget: QWidget, context):
         text = " ".join([c if isinstance(c, str) else "" for c in self.children])
-        context.root.title(text)
+        context.root.setWindowTitle(text)
 
 
 class HTMLScriptElement(HTMLMetaElement):
@@ -32,7 +32,7 @@ class HTMLScriptElement(HTMLMetaElement):
     def is_python(self):
         return self.attrs.get("type") in ["text/python", "python", "text/pyweb"]
 
-    def render(self, parent_widget: Widget, context: 'PyWebClient'):
+    def render(self, parent_widget: QWidget, context: 'PyWebClient'):
         import sys
         import types
         from pyweb_api.DOM import get_globals

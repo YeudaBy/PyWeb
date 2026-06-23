@@ -1,4 +1,5 @@
-import tkinter as tk
+from PyQt6.QtWidgets import QLabel
+from PyQt6.QtCore import Qt
 
 from pyweb_api.DOM.HTMLElement import HTMLElement
 from pyweb_api.DOM.HTMLInteractiveElement import HTMLInteractiveElement
@@ -14,38 +15,8 @@ class HTMLTextElement(HTMLElement):
 
     def render(self, parent_widget, context):
         styles = self._get_style_dict()
-        font_family = styles.get("font-family", "Arial")
-        if font_family == "Ariel":
-            font_family = "Arial"
-        font_size = 12
-        if "font-size" in styles:
-            try:
-                val = styles["font-size"]
-                if isinstance(val, int):
-                    font_size = val
-                elif isinstance(val, str):
-                    for unit in ["px", "pt", "em", "rem"]:
-                        val = val.replace(unit, "")
-                    font_size = int(float(val.strip()))
-            except:
-                pass
-        weight = "bold" if styles.get("font-weight") == "bold" or styles.get("font-width") == 600 else "normal"
-        
-        if self.tag in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-            weight = "bold"
-            font = (font_family, font_size, weight)
-        else:
-            font = (font_family, font_size)
-
-        lbl = tk.Label(
-            parent_widget,
-            text=self.text,
-            wraplength=600,
-            cursor="xterm",
-            fg=styles.get("color", "black"),
-            font=font
-        )
-        lbl.pack(anchor="w", pady=4)
+        lbl = QLabel(self.text, parent_widget)
+        lbl.setWordWrap(True)
         return lbl
 
     @property
@@ -160,15 +131,9 @@ class HTMLAElement(HTMLTextElement, HTMLInteractiveElement):
         }
 
     def render(self, parent_widget, context):
-        styles = self.get_default_styles()
-        font = ("Arial", 12, "underline")  # todo
         link_url = self.attrs.get('href', '#')
-        lbl = tk.Label(parent_widget,
-                       text=self.text,
-                       cursor="hand2",  # todo
-                       font=font,
-                       fg=styles.get("color", "blue")
-                       )
-        lbl.bind("<Button-1>", lambda e: context.window.location.navigate(link_url))
-        lbl.pack(anchor="w", pady=4)
+        lbl = QLabel(self.text, parent_widget)
+        lbl.setWordWrap(True)
+        lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+        lbl.mousePressEvent = lambda e: context.window.location.navigate(link_url)
         return lbl

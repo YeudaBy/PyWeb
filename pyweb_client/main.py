@@ -1,7 +1,13 @@
-import tkinter as tk
-from tkinter import filedialog, scrolledtext
+import sys
+import os
 import threading
 from typing import Optional
+
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QLineEdit, QPushButton, QTextEdit, 
+                             QFileDialog, QLabel, QMenu)
+from PyQt6.QtCore import QObject, pyqtSignal, Qt, QEvent
+from PyQt6.QtGui import QAction, QIcon
 
 from pyweb_api.Window.main import Window
 from pyweb_client.layout.RenderArea import RenderArea
@@ -9,33 +15,43 @@ from pyweb_client.render import render_element
 from pyweb_client.router import ProtocolRouter, AppSchemeHandler, FileSchemeHandler, HttpSchemeHandler, RelativeSchemeHandler
 
 
+class RenderSignaler(QObject):
+    content_signal = pyqtSignal(object)
+    error_signal = pyqtSignal(str, object)
+
+
+class ClickEventFilter(QObject):
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseButtonPress:
+            self.client.window.console.log(f"{obj} clicked")
+        return super().eventFilter(obj, event)
+
+
 class PyWebClient:
-    def __init__(self, root: tk.Tk):
-        self.root: tk.Tk = root
+    def __init__(self, root: QMainWindow):
+        self.root: QMainWindow = root
 
         # Set application logo/window icon
-        import os
-        from PIL import Image, ImageTk
         try:
             logo_path = os.path.join(os.path.dirname(__file__), "..", "assests", "logo.png")
             if os.path.exists(logo_path):
-                img = Image.open(logo_path)
-                photo = ImageTk.PhotoImage(img)
-                self.root.iconphoto(True, photo)
-                self.root.logo_image = photo  # Keep a reference to prevent garbage collection
+                self.root.setWindowIcon(QIcon(logo_path))
         except Exception as e:
             print("Failed to load app logo:", e)
 
         self.render_area: RenderArea = RenderArea(self.root, self)
-        self.address_input: Optional[tk.Entry] = None
-        self.console_container: Optional[tk.Frame] = None
-        self.console_output: Optional[scrolledtext.ScrolledText] = None
+        self.address_input: Optional[QLineEdit] = None
+        self.console_container: Optional[QWidget] = None
+        self.console_output: Optional[QTextEdit] = None
 
         self.window: Window = Window(self)
 
         # Maximize window and focus
-        self.root.state('zoomed')
-        self.root.focus_force()
+        self.root.showMaximized()
 
         # Initialize protocol scheme router
         self.router: ProtocolRouter = ProtocolRouter()
@@ -44,6 +60,11 @@ class PyWebClient:
         self.router.register_handler("http", HttpSchemeHandler())
         self.router.register_handler("https", HttpSchemeHandler())
         self.router.register_handler("relative", RelativeSchemeHandler(self))
+
+        # Thread signaler for safe GUI updates from background loop
+        self.signaler = RenderSignaler()
+        self.signaler.content_signal.connect(self._render_content)
+        self.signaler.error_signal.connect(self._render_error)
 
         self.render_layout()
         self.build_menu()
@@ -61,40 +82,43 @@ class PyWebClient:
         self.interpreter: PyWebInterpreter = PyWebInterpreter(self)
         threading.Thread(target=self.interpreter.open_console, daemon=True).start()
 
+        # Install global click listener filter
+        self.filter = ClickEventFilter(self)
+        QApplication.instance().installEventFilter(self.filter)
+
     def render(self) -> None:
-        self.root.mainloop()
+        pass  # PyQt6 loop is started via app.exec() in run()
 
     def on_open_file(self) -> None:
-        file_path = filedialog.askopenfilename(filetypes=[("HTML files", "*.html")])
+        file_path, _ = QFileDialog.getOpenFileName(self.root, "Open HTML File", "", "HTML Files (*.html)")
         if file_path:
             self.window.location.navigate(f"file://{file_path}")
 
     def _render_log(self, level: str, message: str) -> None:
         if self.console_output:
-            self.console_output.insert(tk.END, f"<{level}>: {message}\n")
-            self.console_output.see(tk.END)
-
-    def _on_click_root(self, event: tk.Event) -> None:
-        widget = event.widget.winfo_containing(event.x_root, event.y_root)
-        self.window.console.log(widget, "clicked")
+            self.console_output.append(f"<{level}>: {message}")
 
     def _on_location_change(self, url: str) -> None:
         self.window.console.log(f"Navigating to: {url}")
-        self.history_menu.add_command(label=url, command=lambda: self.window.location.navigate(url))
+        
+        # Add to history menu dynamically
+        hist_action = QAction(url, self.root)
+        hist_action.triggered.connect(lambda: self.window.location.navigate(url))
+        self.history_menu.addAction(hist_action)
+
         self.render_area.clear()
         
         if self.address_input:
-            self.address_input.delete(0, tk.END)
-            self.address_input.insert(0, url)
+            self.address_input.setText(url)
 
         # Asynchronously resolve url via scheme handlers
         import asyncio
         async def load_task():
             try:
                 response = await self.router.resolve(url)
-                self.root.after(0, lambda: self._render_content(response))
+                self.signaler.content_signal.emit(response)
             except Exception as e:
-                self.root.after(0, lambda: self._render_error(url, e))
+                self.signaler.error_signal.emit(url, e)
 
         asyncio.run_coroutine_threadsafe(load_task(), self.loop)
 
@@ -131,166 +155,180 @@ class PyWebClient:
         self.render_area.clear()
         self.window.location.reload()
 
-    def create_premium_button(self, parent, text, command, bg_color="#4f46e5", fg_color="white", hover_bg="#4338ca"):
-        btn = tk.Label(
-            parent,
-            text=text,
-            bg=bg_color,
-            fg=fg_color,
-            font=("Helvetica", 10, "bold"),
-            padx=12,
-            pady=6,
-            cursor="hand2",
-            relief="flat",
-            bd=0
-        )
-        btn.bind("<Button-1>", lambda e: command())
-        btn.bind("<Enter>", lambda e: btn.configure(bg=hover_bg))
-        btn.bind("<Leave>", lambda e: btn.configure(bg=bg_color))
-        return btn
-
     def toggle_console(self) -> None:
-        if self.console_container.winfo_ismapped():
-            self.console_container.pack_forget()
+        if self.console_container.isVisible():
+            self.console_container.hide()
         else:
-            self.console_container.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
+            self.console_container.show()
 
     def render_layout(self) -> None:
-        self.root.title("PyWeb Client")
-        self.root.configure(bg="#f3f4f6")
-
-        # Top bar frame (modern light background with bottom border highlight)
-        top_bar = tk.Frame(self.root, bg="#ffffff", pady=8, bd=1, relief="flat")
-        top_bar.pack(fill="x", padx=10, pady=(10, 0))
-
-        # Premium styled navigation buttons
-        back_btn = self.create_premium_button(top_bar, "←", self.window.location.back, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
-        back_btn.pack(side="left", padx=(5, 4), pady=2)
-
-        reload_btn = self.create_premium_button(top_bar, "↻", self.reload, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
-        reload_btn.pack(side="left", padx=(0, 4), pady=2)
-
-        forward_btn = self.create_premium_button(top_bar, "→", self.window.location.forward, bg_color="#e5e7eb", fg_color="#374151", hover_bg="#d1d5db")
-        forward_btn.pack(side="left", padx=(0, 12), pady=2)
-
-        # Address bar with high contrast border and large legibility
-        self.address_input = tk.Entry(
-            top_bar,
-            font=("Helvetica", 11),
-            bg="#f9fafb",
-            fg="#1f2937",
-            relief="solid",
-            bd=1,
-            insertbackground="#1f2937",
-            highlightthickness=1,
-            highlightbackground="#e5e7eb",
-            highlightcolor="#3b82f6"
-        )
-        self.address_input.insert(0, "app://home")
-        self.address_input.pack(side="left", fill="x", expand=True, padx=(0, 8), pady=2)
-        self.address_input.bind("<Return>", lambda e: self.window.location.navigate(self.address_input.get()))
-
-        go_btn = self.create_premium_button(top_bar, "Go", lambda: self.window.location.navigate(self.address_input.get()), bg_color="#10b981", hover_bg="#059669")
-        go_btn.pack(side="left", padx=(0, 8), pady=2)
-
-        file_btn = self.create_premium_button(top_bar, "Open HTML", self.on_open_file, bg_color="#3b82f6", hover_bg="#2563eb")
-        file_btn.pack(side="left", padx=(0, 8), pady=2)
-
-        console_btn = self.create_premium_button(top_bar, "Console", self.toggle_console, bg_color="#6b7280", hover_bg="#4b5563")
-        console_btn.pack(side="left", padx=(0, 5), pady=2)
-
-        # Console container frame
-        self.console_container = tk.Frame(self.root, bg="#1f2937")
+        self.root.setWindowTitle("PyWeb Client")
         
-        # Console header bar
-        console_header = tk.Frame(self.console_container, bg="#111827", height=24)
-        console_header.pack(fill="x", side="top")
+        central_widget = QWidget(self.root)
+        self.root.setCentralWidget(central_widget)
         
-        console_title = tk.Label(console_header, text="Developer Console", bg="#111827", fg="#9ca3af", font=("Helvetica", 9, "bold"))
-        console_title.pack(side="left", padx=10, pady=2)
-        
-        clear_btn = tk.Label(console_header, text="Clear", bg="#374151", fg="white", font=("Helvetica", 8, "bold"), cursor="hand2", padx=6)
-        clear_btn.bind("<Button-1>", lambda e: self.console_output.delete("1.0", tk.END))
-        clear_btn.bind("<Enter>", lambda e: clear_btn.configure(bg="#4b5563"))
-        clear_btn.bind("<Leave>", lambda e: clear_btn.configure(bg="#374151"))
-        clear_btn.pack(side="right", padx=5, pady=2)
-        
-        close_btn = tk.Label(console_header, text="✕", bg="#111827", fg="#9ca3af", font=("Helvetica", 9, "bold"), cursor="hand2", padx=6)
-        close_btn.bind("<Button-1>", lambda e: self.toggle_console())
-        close_btn.bind("<Enter>", lambda e: close_btn.configure(fg="white"))
-        close_btn.bind("<Leave>", lambda e: close_btn.configure(fg="#9ca3af"))
-        close_btn.pack(side="right", padx=5, pady=2)
-        
-        self.console_output = scrolledtext.ScrolledText(
-            self.console_container, 
-            height=7, 
-            bg="#1f2937", 
-            fg="#10b981", 
-            insertbackground="white", 
-            font=("Courier", 10),
-            relief="flat",
-            bd=0
-        )
-        self.console_output.pack(fill="both", expand=True)
-        
-        # Start with console shown
-        self.console_container.pack(side="bottom", fill="x", padx=10, pady=(5, 10))
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(5)
 
+        # Top bar toolbar
+        top_bar = QWidget()
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(5)
+
+        btn_style = "QPushButton { background-color: #e5e7eb; color: #374151; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #d1d5db; }"
+        
+        self.back_btn = QPushButton("←")
+        self.back_btn.setStyleSheet(btn_style)
+        self.back_btn.clicked.connect(self.window.location.back)
+        top_layout.addWidget(self.back_btn)
+
+        self.reload_btn = QPushButton("↻")
+        self.reload_btn.setStyleSheet(btn_style)
+        self.reload_btn.clicked.connect(self.reload)
+        top_layout.addWidget(self.reload_btn)
+
+        self.forward_btn = QPushButton("→")
+        self.forward_btn.setStyleSheet(btn_style)
+        self.forward_btn.clicked.connect(self.window.location.forward)
+        top_layout.addWidget(self.forward_btn)
+
+        # Address input
+        self.address_input = QLineEdit("app://home")
+        self.address_input.setStyleSheet("QLineEdit { background-color: #f9fafb; color: #1f2937; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px; font-size: 11pt; } QLineEdit:focus { border: 1px solid #3b82f6; }")
+        self.address_input.returnPressed.connect(lambda: self.window.location.navigate(self.address_input.text()))
+        top_layout.addWidget(self.address_input)
+
+        self.go_btn = QPushButton("Go")
+        self.go_btn.setStyleSheet("QPushButton { background-color: #10b981; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #059669; }")
+        self.go_btn.clicked.connect(lambda: self.window.location.navigate(self.address_input.text()))
+        top_layout.addWidget(self.go_btn)
+
+        self.file_btn = QPushButton("Open HTML")
+        self.file_btn.setStyleSheet("QPushButton { background-color: #3b82f6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #2563eb; }")
+        self.file_btn.clicked.connect(self.on_open_file)
+        top_layout.addWidget(self.file_btn)
+
+        self.console_btn = QPushButton("Console")
+        self.console_btn.setStyleSheet("QPushButton { background-color: #6b7280; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #4b5563; }")
+        self.console_btn.clicked.connect(self.toggle_console)
+        top_layout.addWidget(self.console_btn)
+
+        main_layout.addWidget(top_bar)
+
+        # Render area Scroll Panel
         self.render_area.render_init()
-        # Log to console after it's created
-        self.window.console.log("Console initialized.")
-        self.root.bind("<Button-1>", self._on_click_root)
-        self.root.bind("<F12>", lambda e: self.open_network_inspector())
-        self.root.bind("<Control-Shift-Key-I>", lambda e: self.open_dom_inspector())
-        # self.root.bind("<Control-Shift-key-i>", lambda e: self.open_dom_inspector())
-        self.root.bind("<Control-BackSpace>", lambda e: self.toggle_console())
-        # self.root.bind("<Control-quote>", lambda e: self.toggle_console())
-        self.root.bind("<Control-dead_grave>", lambda e: self.toggle_console())
-        self.root.bind("<Control-asciitilde>", lambda e: self.toggle_console())
-        self.root.bind("<Control-grave>", lambda e: self.toggle_console())
+        main_layout.addWidget(self.render_area.scroll_area, stretch=1)
+
+        # COLLAPSIBLE DEV CONSOLE
+        self.console_container = QWidget()
+        console_layout = QVBoxLayout(self.console_container)
+        console_layout.setContentsMargins(0, 5, 0, 0)
+        console_layout.setSpacing(0)
+
+        # Console Header
+        console_header = QWidget()
+        console_header.setStyleSheet("background-color: #111827; border-top-left-radius: 4px; border-top-right-radius: 4px;")
+        header_layout = QHBoxLayout(console_header)
+        header_layout.setContentsMargins(8, 4, 8, 4)
+
+        console_title = QLabel("Developer Console")
+        console_title.setStyleSheet("color: #9ca3af; font-weight: bold; font-size: 9pt;")
+        header_layout.addWidget(console_title)
+        
+        header_layout.addStretch()
+
+        clear_btn = QPushButton("Clear")
+        clear_btn.setStyleSheet("QPushButton { color: white; font-weight: bold; font-size: 8pt; background-color: #374151; padding: 2px 6px; border: none; border-radius: 2px; } QPushButton:hover { background-color: #4b5563; }")
+        clear_btn.clicked.connect(lambda: self.console_output.clear())
+        header_layout.addWidget(clear_btn)
+
+        close_btn = QPushButton("✕")
+        close_btn.setStyleSheet("QPushButton { color: #9ca3af; font-weight: bold; font-size: 9pt; border: none; background: transparent; } QPushButton:hover { color: white; }")
+        close_btn.clicked.connect(self.toggle_console)
+        header_layout.addWidget(close_btn)
+
+        console_layout.addWidget(console_header)
+
+        # Console Output
+        self.console_output = QTextEdit()
+        self.console_output.setReadOnly(True)
+        self.console_output.setStyleSheet("QTextEdit { background-color: #1f2937; color: #10b981; font-family: 'Courier'; font-size: 10pt; border: none; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }")
+        self.console_output.setFixedHeight(120)
+        console_layout.addWidget(self.console_output)
+
+        main_layout.addWidget(self.console_container)
+
+        # Register shortcuts
+        self.net_inspect_action = QAction(self.root)
+        self.net_inspect_action.setShortcut("F12")
+        self.net_inspect_action.triggered.connect(self.open_network_inspector)
+        self.root.addAction(self.net_inspect_action)
+
+        self.dom_inspect_action = QAction(self.root)
+        self.dom_inspect_action.setShortcut("Ctrl+Shift+I")
+        self.dom_inspect_action.triggered.connect(self.open_dom_inspector)
+        self.root.addAction(self.dom_inspect_action)
+
+        self.toggle_console_action = QAction(self.root)
+        self.toggle_console_action.setShortcut("Ctrl+Backspace")
+        self.toggle_console_action.triggered.connect(self.toggle_console)
+        self.root.addAction(self.toggle_console_action)
 
     def open_network_inspector(self) -> None:
         from pyweb_client.debug_tools import NetworkInspector
-        NetworkInspector(self)
+        inspector = NetworkInspector(self)
+        inspector.show()
+        self.root.inspector = inspector # Prevent garbage collection
 
     def open_dom_inspector(self) -> None:
         from pyweb_client.debug_tools import DOMInspector
-        DOMInspector(self)
+        inspector = DOMInspector(self)
+        inspector.show()
+        self.root.dom_inspector = inspector # Prevent garbage collection
 
     def build_menu(self) -> None:
-        menubar = tk.Menu(self.root)
+        menubar = self.root.menuBar()
 
-        file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="Open", command=self.on_open_file)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
-        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu = menubar.addMenu("File")
+        open_action = QAction("Open", self.root)
+        open_action.triggered.connect(self.on_open_file)
+        file_menu.addAction(open_action)
+        file_menu.addSeparator()
+        exit_action = QAction("Exit", self.root)
+        exit_action.triggered.connect(self.root.close)
+        file_menu.addAction(exit_action)
 
-        history_menu = tk.Menu(menubar, tearoff=0)
-        history_menu.add_command(label="Print History",
-                                 command=lambda: self.window.console.log(";-".join(self.window.location.history)))
-        history_menu.add_command(label="Clear History",
-                                 command=self.window.location.clear_history)
-        history_menu.add_separator()
-        menubar.add_cascade(label="History", menu=history_menu)
-        self.history_menu = history_menu
+        self.history_menu = menubar.addMenu("History")
+        print_history_action = QAction("Print History", self.root)
+        print_history_action.triggered.connect(lambda: self.window.console.log(";-".join(self.window.location.history)))
+        self.history_menu.addAction(print_history_action)
+        clear_history_action = QAction("Clear History", self.root)
+        clear_history_action.triggered.connect(self.window.location.clear_history)
+        self.history_menu.addAction(clear_history_action)
+        self.history_menu.addSeparator()
 
-        debug_menu = tk.Menu(menubar, tearoff=0)
-        debug_menu.add_command(label="Network Inspector", command=self.open_network_inspector)
-        debug_menu.add_command(label="DOM Inspector", command=self.open_dom_inspector)
-        menubar.add_cascade(label="Debug", menu=debug_menu)
+        debug_menu = menubar.addMenu("Debug")
+        net_action = QAction("Network Inspector", self.root)
+        net_action.triggered.connect(self.open_network_inspector)
+        debug_menu.addAction(net_action)
+        dom_action = QAction("DOM Inspector", self.root)
+        dom_action.triggered.connect(self.open_dom_inspector)
+        debug_menu.addAction(dom_action)
 
-        help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="About", command=lambda: self.window.console.log("PyWeb Client v0"))
-        menubar.add_cascade(label="Help", menu=help_menu)
-
-        self.root.config(menu=menubar)
+        help_menu = menubar.addMenu("Help")
+        about_action = QAction("About", self.root)
+        about_action.triggered.connect(lambda: self.window.console.log("PyWeb Client v0"))
+        help_menu.addAction(about_action)
 
 
 def run() -> None:
-    root = tk.Tk()
-    client = PyWebClient(root=root)
-    client.render()
+    app = QApplication(sys.argv)
+    main_win = QMainWindow()
+    client = PyWebClient(root=main_win)
+    main_win.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

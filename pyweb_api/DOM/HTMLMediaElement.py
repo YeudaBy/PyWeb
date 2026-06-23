@@ -1,7 +1,5 @@
-from tkinter import Widget
-import tkinter as tk
-
-from PIL import ImageTk, Image
+from PyQt6.QtWidgets import QWidget, QLabel
+from PyQt6.QtGui import QPixmap
 
 from pyweb_api.DOM.HTMLElement import HTMLElement
 from pyweb_client.network import fetch_binary
@@ -17,7 +15,7 @@ class HTMLIMGElement(HTMLMediaElement):
     def __init__(self, attrs=None, children=None):
         super().__init__("img", attrs, children)
 
-    def render(self, parent_widget: Widget, context):
+    def render(self, parent_widget: QWidget, context):
         src = self.attrs.get("src", "-")
         from urllib.parse import urljoin
         current_url = context.window.location.href if (context and hasattr(context, "window") and context.window) else None
@@ -26,40 +24,39 @@ class HTMLIMGElement(HTMLMediaElement):
             if current_url:
                 src = urljoin(current_url, src)
 
-        image = None
+        image_bytes = None
         try:
             if src.startswith("http"):
-                image = Image.open(fetch_binary(src))
+                image_bytes = fetch_binary(src).getvalue()
             elif src.startswith("/") or src.startswith("file://"):
                 path = src[len("file://"):] if src.startswith("file://") else src
-                image = Image.open(path)
+                with open(path, "rb") as f:
+                    image_bytes = f.read()
             else:
-                image = Image.open(src)
+                with open(src, "rb") as f:
+                    image_bytes = f.read()
         except Exception as e:
-            context.window.console.warn(f"Failed to load image '{src}': {e}")
-            import os
-            current_dir = os.path.dirname(__file__)
-            fallback_path = os.path.join(current_dir, "broken-image.png")
-            try:
-                image = Image.open(fallback_path)
-            except:
-                pass
+            if context and hasattr(context, "window") and context.window:
+                context.window.console.warn(f"Failed to load image '{src}': {e}")
 
-        if image:
+        pixmap = QPixmap()
+        if image_bytes:
+            pixmap.loadFromData(image_bytes)
+
+        if not pixmap.isNull():
             try:
                 styles = self._get_style_dict()
                 width = int(styles.get("width", "150").replace("px", "").strip())
                 height = int(styles.get("height", "100").replace("px", "").strip())
-                image = image.resize((width, height))
+                from PyQt6.QtCore import Qt
+                pixmap = pixmap.scaled(width, height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             except:
                 pass
             
-            img = ImageTk.PhotoImage(image)
-            panel = tk.Label(parent_widget, image=img)
-            panel.image = img  # Keep reference to prevent GC
-            panel.pack(side="bottom", fill="both", expand=0)
+            panel = QLabel(parent_widget)
+            panel.setPixmap(pixmap)
+            panel.pixmap = pixmap  # Keep reference
             return panel
         else:
-            panel = tk.Label(parent_widget, text="[Image]")
-            panel.pack(side="bottom", fill="both", expand=0)
+            panel = QLabel("[Image]", parent_widget)
             return panel

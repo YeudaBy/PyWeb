@@ -1,4 +1,4 @@
-import tkinter as tk
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 from pyweb_api.DOM.HTMLElement import HTMLElement
 
@@ -9,10 +9,12 @@ class HTMLBLockElement(HTMLElement):
             'display': "block"
         }
 
-    def render(self, parent_widget, context) -> tk.Widget:
-        frame = tk.Frame(parent_widget, name=self.tag)
-        frame.pack(fill="x", padx=5, pady=5)
-        return frame
+    def render(self, parent_widget, context) -> QWidget:
+        widget = QWidget(parent_widget)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        return widget
 
 
 class HTMLDivElement(HTMLBLockElement):

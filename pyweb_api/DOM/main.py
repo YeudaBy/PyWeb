@@ -1,4 +1,4 @@
-from tkinter import Widget
+from PyQt6.QtWidgets import QWidget
 
 from pyweb_api.DOM import HTMLElement
 
@@ -23,5 +23,5 @@ class HTMLDocumentElement(HTMLElement):
                 k, v = kv.split("=", 1)
                 self._cookies[k.strip()] = v.strip()
 
-    def render(self, parent_widget: Widget, context) -> Widget:
+    def render(self, parent_widget: QWidget, context) -> QWidget:
         pass

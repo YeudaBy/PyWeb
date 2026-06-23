@@ -1,5 +1,5 @@
-from tkinter import Widget
-from typing import Optional, Dict, List
+from PyQt6.QtWidgets import QWidget
+from typing import Optional, Dict, List, Any
 
 from pyweb_api.DOM import HTMLEvent
 
@@ -56,7 +56,7 @@ class HTMLElement:
                 if event._stopped:
                     return
 
-    def render(self, parent_widget: Widget, context) -> Widget:
+    def render(self, parent_widget: QWidget, context) -> QWidget:
         raise NotImplementedError("Subclasses should implement this")
 
     def get_default_styles(self):
@@ -72,8 +72,9 @@ class HTMLElement:
 
     def set_text(self, new_text: str):
         self.children = [new_text]
-        if hasattr(self, "_tk_widget") and self._tk_widget:
-            self._tk_widget.config(text=new_text)
+        if hasattr(self, "_qt_widget") and self._qt_widget:
+            if hasattr(self._qt_widget, "setText"):
+                self._qt_widget.setText(new_text)
 
     def _get_style_dict(self) -> Dict[str, str]:
         if hasattr(self, "resolved_style") and self.resolved_style:

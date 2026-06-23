@@ -1,5 +1,5 @@
-import tkinter as tk
-from tkinter import Widget
+from PyQt6.QtWidgets import QWidget, QPushButton, QLineEdit, QTextEdit
+from PyQt6.QtCore import Qt
 
 from pyweb_api.DOM import HTMLEvent
 from pyweb_api.DOM.HTMLBlockElement import HTMLBLockElement
@@ -15,7 +15,7 @@ class HTMLInteractiveElement(HTMLElement):
             "cursor": "pointer" if self.attrs.get("disabled") == True else "not-allowed"
         }
 
-    def render(self, parent_widget: Widget, context):
+    def render(self, parent_widget: QWidget, context):
         raise NotImplementedError("Should implement by HTMLInteractiveElement subclass")
 
     @property
@@ -35,13 +35,10 @@ class HTMLButtonElement(HTMLInteractiveElement):
             event = Event("click", self)
             self.dispatch_event(event)
 
-        btn = tk.Button(
-            parent_widget,
-            text=label,
-            command=click_callback,
-            cursor="hand2" if self.attrs.get("disabled") == True else "X_cursor"
-        )
-        btn.pack(pady=5)
+        btn = QPushButton(label, parent_widget)
+        btn.clicked.connect(click_callback)
+        if self.attrs.get("disabled") == True:
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
         return btn
 
 
@@ -58,25 +55,20 @@ class HTMLInputElement(HTMLInteractiveElement, HTMLBLockElement):
         super().__init__("input", attrs, children)
 
     def render(self, parent_widget, context):
-        btn = tk.Entry(
-            parent_widget,
-            cursor="xterm" if self.attrs.get("disabled") == True else "X_cursor",
-            width=60, relief="sunken", bd=2, bg="white"
-        )
-        btn.pack(pady=5)
-        # todo handle value
+        btn = QLineEdit(parent_widget)
+        val = self.attrs.get("value", "")
+        if val:
+            btn.setText(val)
         return btn
+
 
 class HTMLTextAreaElement(HTMLInteractiveElement, HTMLBLockElement):
     def __init__(self, attrs=None, children=None):
         super().__init__("textarea", attrs, children)
 
     def render(self, parent_widget, context):
-        btn = tk.Text(
-            parent_widget,
-            cursor="xterm" if self.attrs.get("disabled") == True else "X_cursor",
-            width=60, relief="sunken", bd=2, bg="white"
-        )
-        btn.pack(pady=5)
-        # todo handle value
+        btn = QTextEdit(parent_widget)
+        val = "".join([c if isinstance(c, str) else "" for c in self.children])
+        if val:
+            btn.setPlainText(val)
         return btn
